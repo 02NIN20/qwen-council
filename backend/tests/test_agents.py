@@ -20,7 +20,7 @@ from backend.agents.quality_agent import QualityAgent
 from backend.agents.security_agent import SecurityAgent
 from backend.agents.ux_agent import UXAgent
 from backend.models.schemas import Finding
-from tests.conftest import SAMPLE_CODE_VULNERABLE, SAMPLE_CODE_CLEAN
+from backend.tests.conftest import SAMPLE_CODE_VULNERABLE, SAMPLE_CODE_CLEAN
 
 
 # ──────────────────────────────────────────────

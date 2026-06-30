@@ -20,10 +20,13 @@ async function fetchJson<T>(url: string, options?: RequestInit): Promise<T> {
   return response.json() as Promise<T>;
 }
 
-export async function submitReview(code: string): Promise<ReviewResponse> {
+export async function submitReview(
+  code: string,
+  files?: { filename: string; content: string; language?: string }[]
+): Promise<ReviewResponse> {
   return fetchJson<ReviewResponse>(`${API_BASE}/review`, {
     method: 'POST',
-    body: JSON.stringify({ code }),
+    body: JSON.stringify({ code: code || undefined, files: files || undefined }),
   });
 }
 

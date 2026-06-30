@@ -51,6 +51,12 @@ export interface SessionSummary {
   finding_count: number;
 }
 
+export interface FileContent {
+  filename: string;
+  content: string;
+  language?: string;
+}
+
 export type AgentId = 'security' | 'architecture' | 'quality' | 'performance' | 'ux' | 'vision';
 
 export type AgentStatus = 'waiting' | 'analyzing' | 'complete' | 'error';
@@ -125,6 +131,7 @@ export interface UserMessage {
   role: 'user';
   content: string;
   code: string;
+  fileInfo?: { name: string; size: number }[];
   timestamp: number;
 }
 

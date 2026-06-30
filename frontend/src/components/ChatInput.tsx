@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect, useCallback, type DragEvent, type ChangeEvent } from 'react';
 
 interface ChatInputProps {
-  onSubmit: (code: string, imageUrl?: string) => void;
+  onSubmit: (code: string, files: { filename: string; content: string }[], imageUrl?: string) => void;
   disabled: boolean;
 }
 
@@ -39,46 +39,64 @@ function truncateFileName(name: string, maxLen = 30): string {
 }
 
 export default function ChatInput({ onSubmit, disabled }: ChatInputProps) {
-  const [file, setFile] = useState<SelectedFile | null>(null);
+  const [files, setFiles] = useState<SelectedFile[]>([]);
   const [showImageInput, setShowImageInput] = useState(false);
   const [imageUrl, setImageUrl] = useState('');
   const [isDragOver, setIsDragOver] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Reset file input value so same file can be reselected
+  // Reset file input value
   useEffect(() => {
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
     }
-  }, [file]);
+  }, [files]);
 
-  const readFile = useCallback((f: File) => {
-    if (f.size > MAX_FILE_SIZE) {
-      alert(`File too large: ${formatFileSize(f.size)}. Maximum is 50 KB.`);
-      return;
+  const readFiles = useCallback((fileList: FileList) => {
+    const pending: SelectedFile[] = [];
+    let hasOversized = false;
+    for (const f of Array.from(fileList)) {
+      if (f.size > MAX_FILE_SIZE) {
+        hasOversized = true;
+        continue;
+      }
+      pending.push({ name: f.name, size: f.size, content: '' });
     }
-    const reader = new FileReader();
-    reader.onload = () => {
-      const content = reader.result as string;
-      setFile({
-        name: f.name,
-        size: f.size,
-        content,
-      });
-    };
-    reader.onerror = () => {
-      alert('Error reading file.');
-    };
-    reader.readAsText(f);
+    if (hasOversized) {
+      alert(`Some files were skipped (max ${formatFileSize(MAX_FILE_SIZE)} each).`);
+    }
+    if (pending.length === 0) return;
+
+    let loaded = 0;
+    const results: SelectedFile[] = [];
+    for (const pf of pending) {
+      const found = Array.from(fileList).find((f) => f.name === pf.name);
+      if (!found) continue;
+      const reader = new FileReader();
+      reader.onload = () => {
+        results.push({ name: pf.name, size: pf.size, content: reader.result as string });
+        loaded++;
+        if (loaded === pending.length) {
+          setFiles((prev) => [...prev, ...results]);
+        }
+      };
+      reader.onerror = () => {
+        loaded++;
+        if (loaded === pending.length) {
+          // just skip failed files
+        }
+      };
+      reader.readAsText(found);
+    }
   }, []);
 
   const handleFileSelect = useCallback(
     (e: ChangeEvent<HTMLInputElement>) => {
-      const f = e.target.files?.[0];
-      if (!f) return;
-      readFile(f);
+      const fl = e.target.files;
+      if (!fl || fl.length === 0) return;
+      readFiles(fl);
     },
-    [readFile]
+    [readFiles]
   );
 
   const handleDrop = useCallback(
@@ -86,11 +104,11 @@ export default function ChatInput({ onSubmit, disabled }: ChatInputProps) {
       e.preventDefault();
       e.stopPropagation();
       setIsDragOver(false);
-      const f = e.dataTransfer.files?.[0];
-      if (!f) return;
-      readFile(f);
+      const fl = e.dataTransfer.files;
+      if (!fl || fl.length === 0) return;
+      readFiles(fl);
     },
-    [readFile]
+    [readFiles]
   );
 
   const handleDragOver = useCallback((e: DragEvent<HTMLDivElement>) => {
@@ -105,19 +123,23 @@ export default function ChatInput({ onSubmit, disabled }: ChatInputProps) {
     setIsDragOver(false);
   }, []);
 
-  const handleRemoveFile = useCallback(() => {
-    setFile(null);
+  const handleRemoveFile = useCallback((index: number) => {
+    setFiles((prev) => prev.filter((_, i) => i !== index));
   }, []);
 
   const handleSubmit = useCallback(() => {
-    if (!file || disabled) return;
-    const trimmed = file.content.trim();
-    if (trimmed.length === 0) return;
-    onSubmit(trimmed, imageUrl.trim() || undefined);
-    setFile(null);
+    if (files.length === 0 || disabled) return;
+    // Always send as files[] — backend builds the multi-file context.
+    // Code param is empty to avoid duplication in the context.
+    const payload = files.map((f) => ({
+      filename: f.name,
+      content: f.content,
+    }));
+    onSubmit('', payload, imageUrl.trim() || undefined);
+    setFiles([]);
     setImageUrl('');
     setShowImageInput(false);
-  }, [file, imageUrl, disabled, onSubmit]);
+  }, [files, imageUrl, disabled, onSubmit]);
 
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent) => {
@@ -129,7 +151,7 @@ export default function ChatInput({ onSubmit, disabled }: ChatInputProps) {
     [handleSubmit]
   );
 
-  const canSubmit = file !== null && file.content.trim().length > 0 && !disabled;
+  const canSubmit = files.length > 0 && !disabled;
 
   return (
     <div className="border-t-2 border-retro-border bg-retro-surface pt-3 pb-4 px-4">
@@ -186,10 +208,10 @@ export default function ChatInput({ onSubmit, disabled }: ChatInputProps) {
         </div>
       )}
 
-      {/* File drop zone / file info */}
+      {/* File drop zone / file list */}
       <div className="flex items-end gap-2">
         <div className="flex-1 relative">
-          {!file ? (
+          {files.length === 0 ? (
             /* ── Drop zone ── */
             <div
               role="button"
@@ -233,40 +255,58 @@ export default function ChatInput({ onSubmit, disabled }: ChatInputProps) {
               </p>
             </div>
           ) : (
-            /* ── Selected file info ── */
-            <div className="flex items-center gap-3 px-4 py-3 bg-retro-bg border border-retro-border">
-              {/* File icon */}
-              <svg
-                className="w-8 h-8 text-retro-cyan flex-shrink-0"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-                strokeWidth={1.5}
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m2.25 0H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z"
-                />
-              </svg>
-              {/* File details */}
-              <div className="flex-1 min-w-0">
-                <p className="text-sm text-gray-200 font-bold truncate">
-                  {truncateFileName(file.name)}
-                </p>
-                <p className="text-[10px] text-gray-500">
-                  {formatFileSize(file.size)} / 50 KB max
-                </p>
-              </div>
-              {/* Remove button */}
+            /* ── Selected files list ── */
+            <div className="max-h-48 overflow-y-auto space-y-1.5 pr-1">
+              {files.map((f, idx) => (
+                <div
+                  key={`${f.name}-${idx}`}
+                  className="flex items-center gap-3 px-3 py-2 bg-[#0d1117] border border-retro-border rounded"
+                >
+                  {/* File icon */}
+                  <svg
+                    className="w-6 h-6 text-retro-cyan flex-shrink-0"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                    strokeWidth={1.5}
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m2.25 0H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z"
+                    />
+                  </svg>
+                  {/* File details */}
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm text-gray-200 font-bold truncate">
+                      {truncateFileName(f.name)}
+                    </p>
+                    <p className="text-[10px] text-gray-500">
+                      {formatFileSize(f.size)} / 50 KB max
+                    </p>
+                  </div>
+                  {/* Remove button */}
+                  <button
+                    onClick={() => handleRemoveFile(idx)}
+                    className="p-1 text-gray-500 hover:text-retro-red transition-colors flex-shrink-0"
+                    aria-label={`Remove ${f.name}`}
+                  >
+                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                </div>
+              ))}
+              {/* Add more files button */}
               <button
-                onClick={handleRemoveFile}
-                className="p-1 text-gray-500 hover:text-retro-red transition-colors"
-                aria-label="Remove selected file"
+                onClick={() => fileInputRef.current?.click()}
+                className="w-full flex items-center justify-center gap-1.5 px-3 py-1.5 border border-dashed border-retro-border text-gray-500 hover:text-retro-cyan hover:border-retro-cyan transition-colors text-xs"
+                aria-label="Add more files"
               >
-                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
                 </svg>
+                Add more files
               </button>
             </div>
           )}
@@ -276,6 +316,7 @@ export default function ChatInput({ onSubmit, disabled }: ChatInputProps) {
             ref={fileInputRef}
             type="file"
             accept={ACCEPT_STRING}
+            multiple={true}
             className="hidden"
             onChange={handleFileSelect}
             aria-hidden="true"
@@ -330,7 +371,7 @@ export default function ChatInput({ onSubmit, disabled }: ChatInputProps) {
       </div>
 
       {/* Hint */}
-      {!disabled && !file && (
+      {!disabled && files.length === 0 && (
         <p className="text-[10px] text-gray-600 mt-1.5 text-center">
           <kbd className="px-1 py-0.5 bg-retro-bg text-gray-500 text-[10px] font-mono border border-retro-border">
             Ctrl+Enter

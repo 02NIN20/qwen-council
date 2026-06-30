@@ -178,19 +178,24 @@ export default function App() {
    * Handle code submission.
    */
   const handleSubmit = useCallback(
-    async (code: string, _imageUrl?: string) => {
+    async (code: string, files?: { filename: string; content: string }[], _imageUrl?: string) => {
       // Cancel any previous animation
       cancelRef.current?.();
 
       // Reset
       setIsLoading(true);
 
+      const fileSummary = files && files.length > 0
+        ? files.map(f => f.filename).join(', ')
+        : (code.slice(0, 100) || 'code review');
+
       // 1. Add user message
       const userMsg: ChatMessageData = {
         id: uid(),
         role: 'user',
-        content: code.slice(0, 100),
-        code,
+        content: fileSummary,
+        code: code || (files?.[0]?.content ?? ''),
+        fileInfo: files?.map(f => ({ name: f.filename, size: f.content.length })),
         timestamp: Date.now(),
       };
 
@@ -205,7 +210,7 @@ export default function App() {
       setMessages([userMsg, progressMsg]);
 
       try {
-        const response = await submitReview(code);
+        const response = await submitReview(code, files);
 
         // Start progressive reveal
         cancelRef.current = buildProgressiveReveal(

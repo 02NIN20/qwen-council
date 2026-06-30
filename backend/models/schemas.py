@@ -9,7 +9,7 @@ from __future__ import annotations
 from datetime import datetime, timezone
 from typing import Any
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 
 # ──────────────────────────────────────────────
@@ -81,16 +81,30 @@ class Report(BaseModel):
 # ──────────────────────────────────────────────
 
 
+class FileContent(BaseModel):
+    """A source file submitted for review."""
+    filename: str = Field(..., description="File name with extension (e.g. main.py)")
+    content: str = Field(..., min_length=1, max_length=50000, description="File contents")
+    language: str | None = Field(None, description="Detected or declared language")
+
+
 class ReviewRequest(BaseModel):
     """POST /api/review payload."""
 
-    code: str = Field(..., min_length=1, max_length=50000, description="Source code to review")
+    code: str | None = Field(None, max_length=50000, description="Source code to review (fallback if no files)")
+    files: list[FileContent] = Field(default_factory=list, max_length=20, description="Multiple source files")
     session_id: str | None = Field(None, description="Existing session identifier")
     image_url: str | None = Field(
         None,
         max_length=50000,
         description="Optional URL or base64 data URI of a screenshot/diagram for visual analysis",
     )
+
+    @model_validator(mode="after")
+    def _require_code_or_files(self) -> "ReviewRequest":
+        if not self.code and not self.files:
+            raise ValueError("Either 'code' or 'files' must be provided")
+        return self
 
 
 class ReviewResponse(BaseModel):

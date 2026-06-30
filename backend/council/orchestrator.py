@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import random
 import uuid
 from datetime import datetime
 from typing import Any
@@ -29,7 +30,7 @@ from backend.memory.episodic_memory import EpisodicMemoryManager
 from backend.memory.semantic_memory import SemanticMemoryManager
 from backend.memory.working_memory import WorkingMemory
 from backend.models.db import async_session_factory
-from backend.models.schemas import Finding, Report
+from backend.models.schemas import FileContent, Finding, Report
 
 logger = logging.getLogger(__name__)
 
@@ -48,11 +49,34 @@ class CouncilOrchestrator:
         }
         self.working_memory = WorkingMemory()
 
+    # ──────────────────────────────────────────────
+    #  Helpers
+    # ──────────────────────────────────────────────
+
+    @staticmethod
+    def _build_multi_file_context(files: list[FileContent]) -> str:
+        """Build a structured multi-file context string with file headers."""
+        if not files:
+            return ""
+        parts = []
+        for f in files:
+            lang = f.language or f.filename.split(".")[-1] if "." in f.filename else ""
+            parts.append(f"### File: {f.filename}")
+            if lang:
+                parts.append(f"```{lang}")
+            else:
+                parts.append("```")
+            parts.append(f.content)
+            parts.append("```")
+            parts.append("")
+        return "\n".join(parts)
+
     async def run_council(
         self,
         code: str,
         session_id: str | None = None,
         image_url: str | None = None,
+        files: list[FileContent] | None = None,
     ) -> tuple[Report, str, dict[str, Any]]:
         """Execute the full 3-round council debate.
 
@@ -64,12 +88,21 @@ class CouncilOrchestrator:
             Existing session ID for memory continuity.
         image_url : str | None
             Optional image URL for visual analysis (vision agent).
+        files : list[FileContent] | None
+            Optional list of source files for multi-file review.
 
         Returns
         -------
         tuple[Report, str, dict[str, Any]]
             (final_report, session_id, round_data)
         """
+        # Build full code context from files if provided
+        if files and not code.strip():
+            code = self._build_multi_file_context(files)
+        elif files:
+            # Combine code param + file context
+            file_context = self._build_multi_file_context(files)
+            code = file_context + "\n\n### Código adicional:\n\n" + code
         if not session_id:
             session_id = f"ses-{uuid.uuid4().hex[:12]}"
 
@@ -181,6 +214,43 @@ class CouncilOrchestrator:
     #  Internal: run a single round
     # ──────────────────────────────────────────────
 
+    async def _analyze_with_retry(
+        self,
+        agent,
+        agent_name: str,
+        round_num: int,
+        code: str,
+        context: list[dict],
+        image_url: str | None = None,
+        max_retries: int = 2,
+    ) -> list[Finding]:
+        """Call agent.analyze() with retry logic and exponential backoff."""
+        last_error = None
+        for attempt in range(max_retries + 1):
+            try:
+                if agent_name == "vision" and image_url:
+                    return await agent.analyze(
+                        code=code, context=context, round=round_num, image_url=image_url
+                    )
+                else:
+                    return await agent.analyze(
+                        code=code, context=context, round=round_num
+                    )
+            except Exception as e:
+                last_error = e
+                if attempt < max_retries:
+                    wait = (2 ** attempt) + random.uniform(0, 1)
+                    logger.warning(
+                        "[Round %d] Agent '%s' failed (attempt %d/%d): %s. Retrying in %.1fs...",
+                        round_num, agent_name, attempt + 1, max_retries + 1, e, wait,
+                    )
+                    await asyncio.sleep(wait)
+        logger.error(
+            "[Round %d] Agent '%s' failed after %d attempts: %s",
+            round_num, agent_name, max_retries + 1, last_error,
+        )
+        return []
+
     async def _run_round(
         self,
         code: str,
@@ -215,39 +285,30 @@ class CouncilOrchestrator:
                 + code
             )
 
-        # Call all agents in parallel
+        # Call all agents in parallel with retry
         tasks: dict[str, asyncio.Task[list[Finding]]] = {}
         for name, agent in self.agents.items():
             ctx = context_per_agent.get(name, [])
-            is_vision = name == "vision"
-
-            if is_vision and image_url:
-                # Vision agent gets the image URL
-                tasks[name] = asyncio.create_task(
-                    agent.analyze(
-                        code=code_with_context,
-                        context=ctx,
-                        round=round_num,
-                        image_url=image_url,
-                    )
+            tasks[name] = asyncio.create_task(
+                self._analyze_with_retry(
+                    agent=agent,
+                    agent_name=name,
+                    round_num=round_num,
+                    code=code_with_context,
+                    context=ctx,
+                    image_url=image_url if name == "vision" else None,
                 )
-            else:
-                tasks[name] = asyncio.create_task(
-                    agent.analyze(
-                        code=code_with_context,
-                        context=ctx,
-                        round=round_num,
-                    )
-                )
+            )
 
         results: dict[str, list[Finding]] = {}
         for name, task in tasks.items():
             try:
-                results[name] = await task
+                results[name] = await asyncio.wait_for(task, timeout=120.0)
+            except asyncio.TimeoutError:
+                logger.error("Agent '%s' timed out in round %d", name, round_num)
+                results[name] = []
             except Exception:
-                logger.exception(
-                    "Agent '%s' failed in round %d", name, round_num
-                )
+                logger.exception("Unexpected error waiting for agent '%s' in round %d", name, round_num)
                 results[name] = []
 
         return results

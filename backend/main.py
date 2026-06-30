@@ -104,9 +104,10 @@ async def review_code(payload: ReviewRequest):
     """
     try:
         report, session_id, round_data = await orchestrator.run_council(
-            code=payload.code,
+            code=payload.code or "",
             session_id=payload.session_id,
             image_url=payload.image_url,
+            files=payload.files or None,
         )
 
         return ReviewResponse(

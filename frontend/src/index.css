@@ -77,41 +77,82 @@
 @layer components {
   /* ── Retro button ── */
   .retro-btn {
-    @apply px-4 py-2 bg-retro-cyan text-black font-bold text-sm
-           border-2 border-retro-cyan
-           hover:bg-transparent hover:text-retro-cyan
-           transition-colors duration-150
-           disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-retro-cyan disabled:hover:text-black
-           uppercase tracking-wider;
+    padding: 8px 16px;
+    background-color: #00fff8;
+    color: #000000;
+    font-weight: 700;
+    font-size: 0.875rem;
+    border: 2px solid #00fff8;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    transition: all 0.15s;
+  }
+
+  .retro-btn:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+  }
+
+  .retro-btn:not(:disabled):hover {
+    background-color: transparent;
+    color: #00fff8;
   }
 
   .retro-btn-secondary {
-    @apply px-4 py-2 bg-retro-surface text-retro-cyan font-bold text-sm
-           border-2 border-retro-border
-           hover:border-retro-cyan
-           transition-colors duration-150
-           disabled:opacity-40 disabled:cursor-not-allowed
-           uppercase tracking-wider;
+    padding: 8px 16px;
+    background-color: #141414;
+    color: #00fff8;
+    font-weight: 700;
+    font-size: 0.875rem;
+    border: 2px solid #2a2a2a;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    transition: all 0.15s;
+  }
+
+  .retro-btn-secondary:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+  }
+
+  .retro-btn-secondary:not(:disabled):hover {
+    border-color: #00fff8;
   }
 
   /* ── Severity badges ── */
   .sev-critico {
-    @apply bg-retro-red text-white px-2 py-0.5 text-xs font-bold;
+    padding: 2px 8px;
+    font-size: 0.75rem;
+    font-weight: 700;
+    background-color: #ff3355;
+    color: #ffffff;
     border: 1px solid #ff3355;
   }
 
   .sev-alto {
-    @apply bg-retro-orange text-black px-2 py-0.5 text-xs font-bold;
+    padding: 2px 8px;
+    font-size: 0.75rem;
+    font-weight: 700;
+    background-color: #ff8800;
+    color: #000000;
     border: 1px solid #ff8800;
   }
 
   .sev-medio {
-    @apply bg-retro-yellow text-black px-2 py-0.5 text-xs font-bold;
+    padding: 2px 8px;
+    font-size: 0.75rem;
+    font-weight: 700;
+    background-color: #ffff00;
+    color: #000000;
     border: 1px solid #ffff00;
   }
 
   .sev-bajo {
-    @apply bg-retro-green text-black px-2 py-0.5 text-xs font-bold;
+    padding: 2px 8px;
+    font-size: 0.75rem;
+    font-weight: 700;
+    background-color: #00ff41;
+    color: #000000;
     border: 1px solid #00ff41;
   }
 
