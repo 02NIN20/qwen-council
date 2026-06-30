@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect, useCallback, type DragEvent, type ChangeEvent } from 'react';
 
 interface ChatInputProps {
-  onSubmit: (code: string, files: { filename: string; content: string }[], imageUrl?: string) => void;
+  onSubmit: (code: string, files: { filename: string; content: string }[], imageUrl?: string, instruction?: string) => void;
   disabled: boolean;
 }
 
@@ -42,6 +42,7 @@ export default function ChatInput({ onSubmit, disabled }: ChatInputProps) {
   const [files, setFiles] = useState<SelectedFile[]>([]);
   const [showImageInput, setShowImageInput] = useState(false);
   const [imageUrl, setImageUrl] = useState('');
+  const [instruction, setInstruction] = useState('');
   const [isDragOver, setIsDragOver] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -135,11 +136,12 @@ export default function ChatInput({ onSubmit, disabled }: ChatInputProps) {
       filename: f.name,
       content: f.content,
     }));
-    onSubmit('', payload, imageUrl.trim() || undefined);
+    onSubmit('', payload, imageUrl.trim() || undefined, instruction.trim() || undefined);
     setFiles([]);
+    setInstruction('');
     setImageUrl('');
     setShowImageInput(false);
-  }, [files, imageUrl, disabled, onSubmit]);
+  }, [files, imageUrl, instruction, disabled, onSubmit]);
 
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent) => {
@@ -321,6 +323,19 @@ export default function ChatInput({ onSubmit, disabled }: ChatInputProps) {
             onChange={handleFileSelect}
             aria-hidden="true"
           />
+
+          {/* Instruction textarea — visible when files are selected */}
+          {files.length > 0 && (
+            <textarea
+              value={instruction}
+              onChange={(e) => setInstruction(e.target.value)}
+              placeholder="Add instructions for the council... (e.g. 'Focus on security, ignore style issues')"
+              className="w-full bg-retro-bg border border-retro-border px-3 py-2 text-xs text-gray-300 placeholder:text-gray-600 outline-none focus:border-retro-cyan transition-colors font-mono resize-none mt-2"
+              rows={2}
+              disabled={disabled}
+              aria-label="Instructions for the council"
+            />
+          )}
         </div>
 
         {/* Buttons */}

@@ -99,6 +99,11 @@ class ReviewRequest(BaseModel):
         max_length=50000,
         description="Optional URL or base64 data URI of a screenshot/diagram for visual analysis",
     )
+    instruction: str | None = Field(
+        None,
+        max_length=2000,
+        description="Optional natural-language instruction for the council (e.g. 'Focus on security')",
+    )
 
     @model_validator(mode="after")
     def _require_code_or_files(self) -> "ReviewRequest":

@@ -135,6 +135,7 @@ export interface UserMessage {
   content: string;
   code: string;
   fileInfo?: { name: string; size: number; language?: string }[];
+  instruction?: string;
   contextPreview?: string;
   timestamp: number;
 }

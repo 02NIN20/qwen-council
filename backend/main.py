@@ -108,6 +108,7 @@ async def review_code(payload: ReviewRequest):
             session_id=payload.session_id,
             image_url=payload.image_url,
             files=payload.files or None,
+            instruction=payload.instruction,
         )
 
         return ReviewResponse(

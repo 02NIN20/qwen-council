@@ -22,11 +22,16 @@ async function fetchJson<T>(url: string, options?: RequestInit): Promise<T> {
 
 export async function submitReview(
   code: string,
-  files?: { filename: string; content: string; language?: string }[]
+  files?: { filename: string; content: string; language?: string }[],
+  instruction?: string,
 ): Promise<ReviewResponse> {
   return fetchJson<ReviewResponse>(`${API_BASE}/review`, {
     method: 'POST',
-    body: JSON.stringify({ code: code || undefined, files: files || undefined }),
+    body: JSON.stringify({
+      code: code || undefined,
+      files: files || undefined,
+      instruction: instruction || undefined,
+    }),
   });
 }
 

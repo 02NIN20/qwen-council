@@ -124,6 +124,18 @@ function UserMessageView({ message }: { message: UserMessage }) {
         </div>
       )}
 
+      {/* Instruction */}
+      {message.instruction && (
+        <div className="mt-2 pl-3 border-l-2 border-retro-magenta">
+          <p className="text-[10px] text-retro-magenta font-bold uppercase tracking-wider mb-1">
+            &gt; INSTRUCTION
+          </p>
+          <p className="text-xs text-gray-400 italic leading-relaxed">
+            {message.instruction}
+          </p>
+        </div>
+      )}
+
       {/* Context preview collapsible */}
       {message.contextPreview && (
         <CollapsibleSection title="VIEW CONTEXT SENT TO AGENTS">

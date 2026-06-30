@@ -205,7 +205,7 @@ export default function App() {
    * Handle code submission.
    */
   const handleSubmit = useCallback(
-    async (code: string, files?: { filename: string; content: string }[], _imageUrl?: string) => {
+    async (code: string, files?: { filename: string; content: string }[], _imageUrl?: string, instruction?: string) => {
       // Cancel any previous animation
       cancelRef.current?.();
 
@@ -228,6 +228,7 @@ export default function App() {
           size: f.content.length,
           language: f.filename.split('.').pop(),
         })),
+        instruction: instruction,
         timestamp: Date.now(),
       };
 
@@ -242,7 +243,7 @@ export default function App() {
       setMessages([initialUserMsg, progressMsg]);
 
       try {
-        const response = await submitReview(code, files);
+        const response = await submitReview(code, files, instruction);
 
         // Update user message with context preview from response
         updateMessage(userMsgId, {

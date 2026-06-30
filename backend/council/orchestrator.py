@@ -77,6 +77,7 @@ class CouncilOrchestrator:
         session_id: str | None = None,
         image_url: str | None = None,
         files: list[FileContent] | None = None,
+        instruction: str | None = None,
     ) -> tuple[Report, str, dict[str, Any]]:
         """Execute the full 3-round council debate.
 
@@ -118,6 +119,15 @@ class CouncilOrchestrator:
 
         # Store context preview (truncated for display)
         round_data["context_preview"] = code[:3000] + ("..." if len(code) > 3000 else "")
+
+        # Store instruction for frontend visibility
+        if instruction:
+            round_data["instruction"] = instruction
+            # Prepend instruction to the code so all agents see it as a user directive
+            instruction_block = f"### Instrucciones del usuario:\n{instruction}\n\n### Código a revisar:\n\n"
+            code = instruction_block + code
+            # Update context_preview too
+            round_data["context_preview"] = code[:3000] + ("..." if len(code) > 3000 else "")
 
         # Store in working memory
         self.working_memory.set(session_id, {"code": code, "status": "in_progress"})

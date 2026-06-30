@@ -6,7 +6,7 @@ import ChatInput from './ChatInput';
 
 interface ChatViewProps {
   messages: ChatMessageData[];
-  onSubmit: (code: string, files?: { filename: string; content: string }[], imageUrl?: string) => void;
+  onSubmit: (code: string, files?: { filename: string; content: string }[], imageUrl?: string, instruction?: string) => void;
   disabled: boolean;
 }
 
