@@ -8,6 +8,7 @@ import type {
   FindingMessage,
   ReportMessage,
   ErrorMessage,
+  RoundTransitionMessage,
 } from '../types';
 import { AGENTS } from '../types';
 
@@ -63,6 +64,7 @@ function CollapsibleSection({
 /* ─── Sub-views ─────────────────────────────────────────────────────── */
 
 function UserMessageView({ message }: { message: UserMessage }) {
+  const hasFileInfo = message.fileInfo && message.fileInfo.length > 0;
   return (
     <div className="chat-message chat-message-user message-enter">
       <div className="flex items-center gap-2 mb-2">
@@ -71,30 +73,73 @@ function UserMessageView({ message }: { message: UserMessage }) {
           {new Date(message.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
         </span>
       </div>
-      <div className="border border-retro-border overflow-hidden">
-        <SyntaxHighlighter
-          language="typescript"
-          style={oneDark}
-          showLineNumbers
-          customStyle={{
-            margin: 0,
-            borderRadius: 0,
-            fontSize: '0.75rem',
-            lineHeight: '1.5',
-            maxHeight: '400px',
-            fontFamily: "'Courier New', Courier, monospace",
-          }}
-          wrapLongLines
-        >
-          {message.code}
-        </SyntaxHighlighter>
-      </div>
+
+      {/* File cards */}
+      {hasFileInfo && (
+        <div className="flex flex-wrap gap-2 mb-3">
+          {message.fileInfo!.map((file, idx) => (
+            <div
+              key={idx}
+              className="inline-flex items-center gap-2 px-3 py-2 border border-retro-border bg-retro-surface text-xs"
+            >
+              {/* File icon */}
+              <span className="text-retro-cyan font-bold text-sm" aria-hidden="true">
+                &#x1F4C4;
+              </span>
+              <div className="flex flex-col">
+                <span className="text-gray-200 font-bold leading-tight">{file.name}</span>
+                <span className="text-[10px] text-gray-600">
+                  {file.size} bytes
+                </span>
+              </div>
+              {file.language && (
+                <span className="text-[10px] uppercase tracking-wider text-retro-green border border-retro-border px-1 py-0.5 ml-1">
+                  {file.language}
+                </span>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Code block (only if no fileInfo or as supplementary) */}
+      {message.code && (
+        <div className="border border-retro-border overflow-hidden mb-3">
+          <SyntaxHighlighter
+            language="typescript"
+            style={oneDark}
+            showLineNumbers
+            customStyle={{
+              margin: 0,
+              borderRadius: 0,
+              fontSize: '0.75rem',
+              lineHeight: '1.5',
+              maxHeight: '400px',
+              fontFamily: "'Courier New', Courier, monospace",
+            }}
+            wrapLongLines
+          >
+            {message.code}
+          </SyntaxHighlighter>
+        </div>
+      )}
+
+      {/* Context preview collapsible */}
+      {message.contextPreview && (
+        <CollapsibleSection title="VIEW CONTEXT SENT TO AGENTS">
+          <pre className="text-[11px] text-gray-400 font-mono whitespace-pre-wrap overflow-auto max-h-[300px] leading-relaxed border border-retro-border bg-retro-bg p-2">
+            {message.contextPreview}
+          </pre>
+        </CollapsibleSection>
+      )}
     </div>
   );
 }
 
 function AgentProgressView({ message }: { message: AgentProgressMessage }) {
   const allDone = message.agents.every((a) => a.status === 'complete' || a.status === 'error');
+  const analyzingAgents = message.agents.filter((a) => a.status === 'analyzing');
+
   return (
     <div className="message-enter">
       <div className="flex items-center gap-2 mb-3">
@@ -112,6 +157,20 @@ function AgentProgressView({ message }: { message: AgentProgressMessage }) {
           </span>
         )}
       </div>
+
+      {/* Show which agents are analyzing with their files */}
+      {analyzingAgents.length > 0 && (
+        <div className="text-[10px] text-gray-600 mb-2 font-mono">
+          Reviewing: {analyzingAgents.map((a) => a.name).join(', ')}...
+        </div>
+      )}
+
+      {allDone && (
+        <div className="text-[10px] text-retro-green mb-2 font-mono">
+          Round complete &middot; {message.agents.filter((a) => a.status === 'complete').length} agents finished
+        </div>
+      )}
+
       <div className="flex flex-wrap gap-2">
         {message.agents.map((agent) => (
           <div
@@ -151,6 +210,10 @@ function AgentProgressView({ message }: { message: AgentProgressMessage }) {
 function FindingView({ message }: { message: FindingMessage }) {
   const { finding, agentName, agentIcon, agentColor, round } = message;
 
+  // Extract possible filename from finding detail
+  const fileMatch = finding.detalle.match(/`([\w\/.-]+\.[a-z]+)`/);
+  const mentionedFile = fileMatch ? fileMatch[1] : null;
+
   return (
     <div
       className="chat-message chat-message-finding message-enter"
@@ -161,6 +224,11 @@ function FindingView({ message }: { message: FindingMessage }) {
         <span className="text-xs font-bold" style={{ color: agentColor }}>
           [{agentIcon}] {agentName}
         </span>
+        {mentionedFile && (
+          <span className="text-[10px] font-mono text-retro-yellow border border-retro-border px-1.5 py-0.5">
+            [{mentionedFile}]
+          </span>
+        )}
         <SeverityBadge severity={finding.impacto} />
         <span className="text-[10px] text-gray-600 border border-retro-border px-1.5 py-0.5 font-mono">
           R{round}
@@ -202,8 +270,48 @@ function ReportView({ message }: { message: ReportMessage }) {
     if (counts[f.impacto] !== undefined) counts[f.impacto]++;
     else counts.Bajo++;
   }
+  const totalFindings = report.findings.length;
+
+  // Extract possible file names from findings
+  function extractFile(text: string): string | null {
+    const match = text.match(/`([\w\/.-]+\.[a-z]+)`/);
+    return match ? match[1] : null;
+  }
+
+  // Group findings by detected file
+  const fileGroups: Record<string, { findings: typeof report.findings; counts: Record<string, number> }> = {};
+  let otherFindings: typeof report.findings = [];
+
+  for (const f of report.findings) {
+    const file =
+      extractFile(f.detalle) || extractFile(f.hallazgo);
+    if (file) {
+      if (!fileGroups[file]) {
+        fileGroups[file] = { findings: [], counts: { Crítico: 0, Alto: 0, Medio: 0, Bajo: 0 } };
+      }
+      fileGroups[file].findings.push(f);
+      if (fileGroups[file].counts[f.impacto] !== undefined) fileGroups[file].counts[f.impacto]++;
+    } else {
+      otherFindings.push(f);
+    }
+  }
 
   const [expandedIdx, setExpandedIdx] = useState<number | null>(null);
+  const [filterFile, setFilterFile] = useState<string | null>(null);
+
+  const filteredFindings = filterFile
+    ? fileGroups[filterFile]?.findings ?? []
+    : report.findings;
+
+  // Calculate average consensus
+  const avgConsensus =
+    totalFindings > 0
+      ? Math.round(
+          (report.findings.reduce((sum, f) => sum + f.consensus_score, 0) /
+            totalFindings) *
+            100
+        )
+      : 0;
 
   return (
     <div className="message-enter">
@@ -227,21 +335,93 @@ function ReportView({ message }: { message: ReportMessage }) {
         </p>
       </div>
 
-      {/* Severity distribution */}
-      <div className="flex flex-wrap gap-2 mb-3">
-        {Object.entries(counts).map(([sev, count]) => {
-          if (count === 0) return null;
-          return <SeverityBadge key={sev} severity={sev} />;
-        })}
-        <span className="text-[10px] text-gray-600 self-center">
-          {report.findings.length} finding{report.findings.length !== 1 ? 's' : ''}
-        </span>
+      {/* Severity dashboard */}
+      <div className="finding-item mb-3">
+        <p className="text-[10px] text-retro-cyan font-bold uppercase tracking-wider mb-2">
+          &gt; SEVERITY DASHBOARD
+        </p>
+        <div className="flex flex-wrap gap-2 mb-2">
+          {Object.entries(counts).map(([sev, count]) => (
+            <span
+              key={sev}
+              className="inline-flex items-center gap-1 px-2 py-1 border border-retro-border bg-retro-bg text-[10px] font-mono"
+            >
+              <SeverityBadge severity={sev} />
+              <span className="text-gray-400 font-bold">: {count}</span>
+            </span>
+          ))}
+        </div>
+        <div className="text-[10px] text-gray-600 font-mono">
+          Total: {totalFindings} finding{totalFindings !== 1 ? 's' : ''} &middot; Consensus: {avgConsensus}%
+        </div>
       </div>
+
+      {/* Findings by file */}
+      {Object.keys(fileGroups).length > 0 && (
+        <div className="finding-item mb-3">
+          <p className="text-[10px] text-retro-cyan font-bold uppercase tracking-wider mb-2">
+            &gt; FINDINGS BY FILE
+          </p>
+          <div className="space-y-1">
+            {Object.entries(fileGroups).map(([fileName, group]) => (
+              <button
+                key={fileName}
+                onClick={() => setFilterFile(filterFile === fileName ? null : fileName)}
+                className={`w-full flex items-center justify-between gap-2 px-2 py-1 text-xs font-mono border border-retro-border transition-colors ${
+                  filterFile === fileName
+                    ? 'bg-retro-cyan/10 border-retro-cyan'
+                    : 'bg-retro-bg hover:border-retro-cyan'
+                }`}
+                aria-label={`Filter by ${fileName}`}
+              >
+                <span className="text-gray-200 font-bold truncate">{fileName}</span>
+                <span className="text-gray-600 flex-shrink-0">
+                  {group.findings.length} finding{group.findings.length !== 1 ? 's' : ''}
+                  {Object.entries(group.counts)
+                    .filter(([, c]) => c > 0)
+                    .map(([sev, c]) => (
+                      <span key={sev} className="ml-2 text-[10px]">
+                        <span
+                          className={
+                            sev === 'Crítico'
+                              ? 'text-retro-red'
+                              : sev === 'Alto'
+                                ? 'text-retro-orange'
+                                : sev === 'Medio'
+                                  ? 'text-retro-yellow'
+                                  : 'text-retro-green'
+                          }
+                        >
+                          {c} {sev}
+                        </span>
+                      </span>
+                    ))}
+                </span>
+              </button>
+            ))}
+            {otherFindings.length > 0 && (
+              <button
+                onClick={() => setFilterFile('__other__')}
+                className={`w-full flex items-center justify-between gap-2 px-2 py-1 text-xs font-mono border border-retro-border transition-colors ${
+                  filterFile === '__other__'
+                    ? 'bg-retro-cyan/10 border-retro-cyan'
+                    : 'bg-retro-bg hover:border-retro-cyan'
+                }`}
+                aria-label="Show findings without file reference"
+              >
+                <span className="text-gray-400 italic">(other)</span>
+                <span className="text-gray-600">
+                  {otherFindings.length} finding{otherFindings.length !== 1 ? 's' : ''}
+                </span>
+              </button>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Consolidated findings */}
       <div className="space-y-2">
-        {report.findings.map((finding, idx) => {
-          // Find which agent voted what for display
+        {filteredFindings.map((finding, idx) => {
           const voteEntries = Object.entries(finding.votes);
           return (
             <div key={idx} className="finding-item">
@@ -338,6 +518,32 @@ function ErrorView({ message }: { message: ErrorMessage }) {
   );
 }
 
+/* ─── Round Transition View ────────────────────────────────────────── */
+
+function RoundTransitionView({ message }: { message: RoundTransitionMessage }) {
+  const stageLabel =
+    message.round === 1 ? 'INDIVIDUAL ANALYSIS' : message.round === 2 ? 'CROSS-DEBATE' : 'REFINEMENT';
+  return (
+    <div className="message-enter py-3">
+      <div className="flex items-center gap-3 border-t border-b border-retro-border py-2">
+        <span className="text-xs font-bold text-retro-cyan uppercase tracking-widest">
+          &gt; {message.label}
+        </span>
+        <span className="text-[10px] text-gray-600 font-mono border border-retro-border px-1.5 py-0.5">
+          {stageLabel}
+        </span>
+        {/* Progress bar */}
+        <div className="flex-1 h-1 bg-retro-border max-w-[120px] ml-auto">
+          <div
+            className="h-full bg-retro-cyan transition-all duration-500"
+            style={{ width: `${(message.round / 3) * 100}%` }}
+          />
+        </div>
+      </div>
+    </div>
+  );
+}
+
 /* ─── Main component ────────────────────────────────────────────────── */
 
 interface ChatMessageProps {
@@ -356,6 +562,8 @@ export default function ChatMessage({ message }: ChatMessageProps) {
       return <ReportView message={message} />;
     case 'error':
       return <ErrorView message={message} />;
+    case 'round-transition':
+      return <RoundTransitionView message={message} />;
     default:
       return null;
   }

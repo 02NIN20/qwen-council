@@ -70,7 +70,7 @@ class Report(BaseModel):
     summary: str = Field("", description="Executive summary")
     rounds: int = Field(3)
     participants: list[str] = Field(
-        default_factory=lambda: ["security", "architecture", "quality", "performance", "ux"]
+        default_factory=lambda: ["security", "architecture", "quality", "performance", "ux", "vision"]
     )
     session_id: str | None = None
     created_at: str = Field(default_factory=lambda: datetime.now(timezone.utc).isoformat())

@@ -4,6 +4,7 @@ import type {
   AgentProgress,
   Finding,
   ReviewResponse,
+  RoundTransitionMessage,
 } from './types';
 import { AGENTS } from './types';
 import { submitReview } from './api/council';
@@ -136,7 +137,19 @@ function buildProgressiveReveal(
     setTimeout(() => {
       if (cancelled) return;
       if (roundIndex < 2) {
-        releaseRound(roundIndex + 1);
+        // Insert round transition before next round
+        const nextRound = roundIndex + 2; // 2-indexed
+        const labels = ['INDIVIDUAL ANALYSIS', 'CROSS-DEBATE', 'REFINEMENT'];
+        onAddMessage({
+          id: uid(),
+          role: 'round-transition',
+          round: nextRound,
+          label: `ROUND ${nextRound}: ${labels[nextRound - 1]}`,
+        });
+        setTimeout(() => {
+          if (cancelled) return;
+          releaseRound(roundIndex + 1);
+        }, 400);
       } else {
         onDone();
       }
@@ -144,7 +157,21 @@ function buildProgressiveReveal(
   }
 
   // Start after a brief pause so the user sees "waiting" state first
-  const startTimeout = setTimeout(() => releaseRound(0), 600);
+  const labels = ['INDIVIDUAL ANALYSIS', 'CROSS-DEBATE', 'REFINEMENT'];
+  const startTimeout = setTimeout(() => {
+    if (cancelled) return;
+    // Insert round transition for Round 1
+    onAddMessage({
+      id: uid(),
+      role: 'round-transition',
+      round: 1,
+      label: `ROUND 1: ${labels[0]}`,
+    });
+    setTimeout(() => {
+      if (cancelled) return;
+      releaseRound(0);
+    }, 400);
+  }, 600);
 
   return () => {
     cancelled = true;
@@ -189,13 +216,18 @@ export default function App() {
         ? files.map(f => f.filename).join(', ')
         : (code.slice(0, 100) || 'code review');
 
-      // 1. Add user message
-      const userMsg: ChatMessageData = {
-        id: uid(),
+      // 1. Create initial user message (without contextPreview — added after response)
+      const userMsgId = uid();
+      const initialUserMsg: ChatMessageData = {
+        id: userMsgId,
         role: 'user',
         content: fileSummary,
         code: code || (files?.[0]?.content ?? ''),
-        fileInfo: files?.map(f => ({ name: f.filename, size: f.content.length })),
+        fileInfo: files?.map(f => ({
+          name: f.filename,
+          size: f.content.length,
+          language: f.filename.split('.').pop(),
+        })),
         timestamp: Date.now(),
       };
 
@@ -207,10 +239,16 @@ export default function App() {
         label: 'Iniciando revisión...',
       };
 
-      setMessages([userMsg, progressMsg]);
+      setMessages([initialUserMsg, progressMsg]);
 
       try {
         const response = await submitReview(code, files);
+
+        // Update user message with context preview from response
+        updateMessage(userMsgId, {
+          ...initialUserMsg,
+          contextPreview: response.rounds_raw?.context_preview,
+        });
 
         // Start progressive reveal
         cancelRef.current = buildProgressiveReveal(

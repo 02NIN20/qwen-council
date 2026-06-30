@@ -96,15 +96,28 @@ class CouncilOrchestrator:
         tuple[Report, str, dict[str, Any]]
             (final_report, session_id, round_data)
         """
-        # Build full code context from files if provided
-        if files and not code.strip():
-            code = self._build_multi_file_context(files)
-        elif files:
-            # Combine code param + file context
-            file_context = self._build_multi_file_context(files)
-            code = file_context + "\n\n### Código adicional:\n\n" + code
         if not session_id:
             session_id = f"ses-{uuid.uuid4().hex[:12]}"
+
+        # Initialize round data for frontend tracing
+        round_data: dict[str, Any] = {}
+
+        # Build full code context from files if provided
+        if files:
+            round_data["files"] = [
+                {"filename": f.filename, "size": len(f.content), "language": f.language or (f.filename.split(".")[-1] if "." in f.filename else "text")}
+                for f in files
+            ]
+            if not code.strip():
+                code = self._build_multi_file_context(files)
+            else:
+                file_context = self._build_multi_file_context(files)
+                code = file_context + "\n\n### Código adicional:\n\n" + code
+        else:
+            round_data["files"] = [{"filename": "source.txt", "size": len(code), "language": "text"}]
+
+        # Store context preview (truncated for display)
+        round_data["context_preview"] = code[:3000] + ("..." if len(code) > 3000 else "")
 
         # Store in working memory
         self.working_memory.set(session_id, {"code": code, "status": "in_progress"})
@@ -113,7 +126,6 @@ class CouncilOrchestrator:
         semantic_patterns = await self._retrieve_semantic_context(code)
 
         all_findings: dict[int, list[Finding]] = {}
-        round_data: dict[str, Any] = {}
 
         # ── Round 1: Individual analysis ──────────────────────
         logger.info("[%s] Starting Round 1: Individual analysis", session_id)

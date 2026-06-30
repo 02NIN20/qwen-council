@@ -32,6 +32,9 @@ export interface ReviewResponse {
     round_2: Finding[];
     round_3: Finding[];
   };
+  rounds_raw?: {
+    context_preview?: string;
+  };
 }
 
 export interface SessionDetail {
@@ -131,7 +134,8 @@ export interface UserMessage {
   role: 'user';
   content: string;
   code: string;
-  fileInfo?: { name: string; size: number }[];
+  fileInfo?: { name: string; size: number; language?: string }[];
+  contextPreview?: string;
   timestamp: number;
 }
 
@@ -165,9 +169,17 @@ export interface ErrorMessage {
   text: string;
 }
 
+export interface RoundTransitionMessage {
+  id: string;
+  role: 'round-transition';
+  round: number;
+  label: string;
+}
+
 export type ChatMessageData =
   | UserMessage
   | AgentProgressMessage
   | FindingMessage
   | ReportMessage
-  | ErrorMessage;
+  | ErrorMessage
+  | RoundTransitionMessage;
