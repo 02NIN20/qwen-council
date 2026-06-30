@@ -51,7 +51,7 @@ export interface SessionSummary {
   finding_count: number;
 }
 
-export type AgentId = 'security' | 'architecture' | 'quality' | 'performance' | 'ux';
+export type AgentId = 'security' | 'architecture' | 'quality' | 'performance' | 'ux' | 'vision';
 
 export type AgentStatus = 'waiting' | 'analyzing' | 'complete' | 'error';
 
@@ -67,38 +67,100 @@ export const AGENTS: AgentInfo[] = [
   {
     id: 'security',
     name: 'Seguridad',
-    icon: '\u{1F6E1}\uFE0F',
+    icon: 'S',
     color: '#EF4444',
     specialty: 'OWASP, SQLi, XSS, Secrets',
   },
   {
     id: 'architecture',
     name: 'Arquitectura',
-    icon: '\u{1F3D7}\uFE0F',
+    icon: 'A',
     color: '#3B82F6',
     specialty: 'SOLID, Patrones, Acoplamiento',
   },
   {
     id: 'quality',
     name: 'Calidad',
-    icon: '\u{1F4D0}',
+    icon: 'Q',
     color: '#22C55E',
     specialty: 'Estilo, Tests, Complejidad',
   },
   {
     id: 'performance',
     name: 'Performance',
-    icon: '\u26A1',
+    icon: 'P',
     color: '#F59E0B',
     specialty: 'N+1, Caché, Cuellos de botella',
   },
   {
     id: 'ux',
     name: 'UX / Accesibilidad',
-    icon: '\u267F',
+    icon: 'U',
     color: '#A855F7',
     specialty: 'a11y, i18n, Contraste',
+  },
+  {
+    id: 'vision',
+    name: 'Visión',
+    icon: 'V',
+    color: '#EC4899',
+    specialty: 'Diseño, Consistencia Visual, UI',
   },
 ];
 
 export type AppPhase = 'idle' | 'analyzing' | 'round1' | 'round2' | 'round3' | 'complete' | 'error';
+
+// ─── Chat Interface Types ────────────────────────────────────────────────
+
+export interface AgentProgress {
+  id: string;
+  name: string;
+  icon: string;
+  color: string;
+  status: 'waiting' | 'analyzing' | 'complete' | 'error';
+}
+
+export interface UserMessage {
+  id: string;
+  role: 'user';
+  content: string;
+  code: string;
+  timestamp: number;
+}
+
+export interface AgentProgressMessage {
+  id: string;
+  role: 'agent-progress';
+  agents: AgentProgress[];
+  label: string;
+}
+
+export interface FindingMessage {
+  id: string;
+  role: 'finding';
+  finding: Finding;
+  agentName: string;
+  agentIcon: string;
+  agentColor: string;
+  round: number;
+}
+
+export interface ReportMessage {
+  id: string;
+  role: 'report';
+  report: Report;
+  sessionId: string;
+}
+
+export interface ErrorMessage {
+  id: string;
+  role: 'error';
+  text: string;
+}
+
+export type ChatMessageData =
+  | UserMessage
+  | AgentProgressMessage
+  | FindingMessage
+  | ReportMessage
+  | ErrorMessage;
