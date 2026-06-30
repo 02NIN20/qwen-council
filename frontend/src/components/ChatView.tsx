@@ -1,4 +1,4 @@
-import { useRef, useEffect } from 'react';
+import { useRef, useEffect, useState, useCallback } from 'react';
 import type { ChatMessageData } from '../types';
 import { AGENTS } from '../types';
 import ChatMessage from './ChatMessage';
@@ -8,11 +8,15 @@ interface ChatViewProps {
   messages: ChatMessageData[];
   onSubmit: (code: string, files?: { filename: string; content: string }[], imageUrl?: string, instruction?: string) => void;
   disabled: boolean;
+  sessionId?: string;
 }
 
-export default function ChatView({ messages, onSubmit, disabled }: ChatViewProps) {
+export default function ChatView({ messages, onSubmit, disabled, sessionId }: ChatViewProps) {
   const bottomRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+  const [followUp, setFollowUp] = useState('');
+  const [followUpResponse, setFollowUpResponse] = useState('');
+  const [followUpLoading, setFollowUpLoading] = useState(false);
 
   // Auto-scroll to bottom when messages change
   useEffect(() => {
@@ -23,13 +27,45 @@ export default function ChatView({ messages, onSubmit, disabled }: ChatViewProps
     if (isNearBottom) {
       bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
     }
-  }, [messages]);
+  }, [messages, followUpResponse]);
 
   const hasMessages = messages.length > 0;
+  const lastMessageIsReport = hasMessages && messages[messages.length - 1].role === 'report';
+
+  // Follow-up API call
+  const handleFollowUp = useCallback(async () => {
+    if (!followUp.trim() || !sessionId) return;
+    setFollowUpLoading(true);
+    const question = followUp.trim();
+    setFollowUp('');
+
+    // Build context from the report
+    const reportMsg = messages.find(m => m.role === 'report');
+    const context = reportMsg?.report
+      ? JSON.stringify(reportMsg.report.findings.slice(0, 5))
+      : '';
+
+    try {
+      const res = await fetch('/api/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          session_id: sessionId,
+          message: question,
+          context,
+        }),
+      });
+      const data = await res.json();
+      setFollowUpResponse(data.response || 'No response');
+    } catch {
+      setFollowUpResponse('Error getting response');
+    }
+    setFollowUpLoading(false);
+  }, [followUp, sessionId, messages]);
 
   return (
-    <div className="flex flex-col h-screen bg-retro-bg">
-      {/* Scrollable message area */}
+    <div className="flex flex-col h-full">
+      {/* Messages area */}
       <div
         ref={containerRef}
         className="flex-1 overflow-y-auto scrollbar-retro px-4 py-6"
@@ -50,8 +86,8 @@ export default function ChatView({ messages, onSubmit, disabled }: ChatViewProps
               </h1>
 
               <p className="text-xs text-gray-500 max-w-md leading-relaxed mb-6 uppercase tracking-wider">
-                Multi-agent code review system. Drop a file below and let
-                six specialized agents analyze it.
+                Multi-agent code review system. Drop files below and let
+                six specialized agents analyze them.
               </p>
 
               {/* Agent badges — sharp retro style */}
@@ -69,13 +105,6 @@ export default function ChatView({ messages, onSubmit, disabled }: ChatViewProps
                   </span>
                 ))}
               </div>
-
-              <div className="mt-8 text-[10px] text-gray-700">
-                <kbd className="px-1.5 py-0.5 bg-retro-bg border border-retro-border font-mono text-gray-600">
-                  Ctrl+Enter
-                </kbd>{' '}
-                to send
-              </div>
             </div>
           ) : (
             /* ── Messages ── */
@@ -85,12 +114,59 @@ export default function ChatView({ messages, onSubmit, disabled }: ChatViewProps
               </div>
             ))
           )}
+
+          {/* Follow-up Q&A (shown after report) */}
+          {followUpResponse && (
+            <div className="chat-message message-enter" style={{ borderLeft: '3px solid #00fff8' }}>
+              <div className="flex items-center gap-2 mb-2">
+                <span className="text-xs font-bold text-retro-cyan">&gt; FOLLOW-UP</span>
+              </div>
+              <p className="text-sm text-gray-300 leading-relaxed whitespace-pre-wrap">{followUpResponse}</p>
+            </div>
+          )}
         </div>
         <div ref={bottomRef} />
       </div>
 
-      {/* Fixed input area */}
-      <ChatInput onSubmit={onSubmit} disabled={disabled} />
+      {/* Follow-up input (shown after report) */}
+      {lastMessageIsReport && !disabled && (
+        <div className="border-t border-retro-border bg-retro-surface px-4 py-2">
+          <div className="max-w-3xl mx-auto flex items-center gap-2">
+            <input
+              type="text"
+              value={followUp}
+              onChange={(e) => setFollowUp(e.target.value)}
+              onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleFollowUp(); } }}
+              placeholder="Ask a follow-up question about this review..."
+              className="flex-1 bg-retro-bg border border-retro-border px-3 py-2 text-sm text-gray-300 placeholder:text-gray-600 outline-none focus:border-retro-cyan transition-colors font-mono"
+              disabled={followUpLoading}
+              aria-label="Follow-up question"
+            />
+            <button
+              onClick={handleFollowUp}
+              disabled={!followUp.trim() || followUpLoading}
+              className="p-2 border border-retro-cyan text-retro-cyan hover:bg-retro-cyan hover:text-black transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+              aria-label="Send follow-up"
+            >
+              {followUpLoading ? (
+                <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                </svg>
+              ) : (
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M5 12h14M12 5l7 7-7 7" />
+                </svg>
+              )}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Main chat input */}
+      {!lastMessageIsReport && (
+        <ChatInput onSubmit={onSubmit} disabled={disabled} />
+      )}
     </div>
   );
 }

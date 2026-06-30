@@ -122,6 +122,19 @@ class ReviewResponse(BaseModel):
     )
 
 
+class ChatRequest(BaseModel):
+    """POST /api/chat payload."""
+    session_id: str = Field(..., description="Session to ask about")
+    message: str = Field(..., min_length=1, max_length=4000, description="Follow-up question")
+    context: str | None = Field(None, max_length=20000, description="Report/findings context from the review")
+
+
+class ChatResponse(BaseModel):
+    """POST /api/chat response."""
+    response: str
+    session_id: str
+
+
 class SessionSummary(BaseModel):
     """Lightweight session representation for listing."""
 

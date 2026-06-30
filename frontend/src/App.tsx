@@ -4,11 +4,11 @@ import type {
   AgentProgress,
   Finding,
   ReviewResponse,
-  RoundTransitionMessage,
 } from './types';
 import { AGENTS } from './types';
-import { submitReview } from './api/council';
+import { submitReview, getSession } from './api/council';
 import ChatView from './components/ChatView';
+import Sidebar from './components/Sidebar';
 
 /* ─── Helpers ───────────────────────────────────────────────────────── */
 
@@ -184,6 +184,8 @@ function buildProgressiveReveal(
 export default function App() {
   const [messages, setMessages] = useState<ChatMessageData[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [activeSessionId, setActiveSessionId] = useState<string | undefined>();
 
   const cancelRef = useRef<(() => void) | null>(null);
 
@@ -199,6 +201,47 @@ export default function App() {
    */
   const updateMessage = useCallback((id: string, msg: ChatMessageData) => {
     setMessages((prev) => prev.map((m) => (m.id === id ? msg : m)));
+  }, []);
+
+  // New Chat — reset everything
+  const handleNewChat = useCallback(() => {
+    cancelRef.current?.();
+    setMessages([]);
+    setIsLoading(false);
+    setActiveSessionId(undefined);
+  }, []);
+
+  // Load a past session
+  const handleSelectSession = useCallback(async (sessionId: string) => {
+    cancelRef.current?.();
+    setIsLoading(true);
+    try {
+      const session = await getSession(sessionId);
+      setActiveSessionId(sessionId);
+      // Create a user message from the session
+      const userMsg: ChatMessageData = {
+        id: uid(),
+        role: 'user',
+        content: session.code.slice(0, 100),
+        code: session.code,
+        timestamp: Date.now(),
+      };
+      // Create a report message from stored findings
+      const reportMsg: ChatMessageData = {
+        id: uid(),
+        role: 'report',
+        report: session.findings_json?.report || { findings: session.findings_json?.findings || [] },
+        sessionId: session.id,
+      };
+      setMessages([userMsg, reportMsg]);
+    } catch {
+      setMessages([{
+        id: uid(),
+        role: 'error',
+        text: 'Failed to load session',
+      }]);
+    }
+    setIsLoading(false);
   }, []);
 
   /**
@@ -237,7 +280,7 @@ export default function App() {
         id: uid(),
         role: 'agent-progress',
         agents: allAgentProgress('waiting'),
-        label: 'Iniciando revisión...',
+        label: 'STARTING COUNCIL...',
       };
 
       setMessages([initialUserMsg, progressMsg]);
@@ -250,6 +293,8 @@ export default function App() {
           ...initialUserMsg,
           contextPreview: response.rounds_raw?.context_preview,
         });
+
+        setActiveSessionId(response.session_id);
 
         // Start progressive reveal
         cancelRef.current = buildProgressiveReveal(
@@ -279,7 +324,7 @@ export default function App() {
           text:
             err instanceof Error
               ? err.message
-              : 'Error desconocido al conectar con el backend',
+              : 'Unknown error',
         };
         setMessages((prev) => [...prev, errorMsg]);
         setIsLoading(false);
@@ -289,6 +334,46 @@ export default function App() {
   );
 
   return (
-    <ChatView messages={messages} onSubmit={handleSubmit} disabled={isLoading} />
+    <div className="flex h-screen bg-retro-bg">
+      <Sidebar
+        onNewChat={handleNewChat}
+        onSelectSession={handleSelectSession}
+        activeSessionId={activeSessionId}
+        collapsed={sidebarCollapsed}
+        onToggle={() => setSidebarCollapsed(!sidebarCollapsed)}
+      />
+      <div className="flex-1 flex flex-col min-w-0">
+        {/* Header */}
+        <div className="flex items-center justify-between px-4 py-2 border-b border-retro-border bg-retro-surface">
+          <div className="flex items-center gap-2">
+            <span className="text-xs font-bold text-retro-cyan uppercase tracking-widest">
+              &gt; QWEN COUNCIL
+            </span>
+            {activeSessionId && (
+              <span className="text-[10px] text-gray-600 font-mono">
+                {activeSessionId.slice(0, 12)}
+              </span>
+            )}
+          </div>
+          <button
+            onClick={handleNewChat}
+            className="flex items-center gap-1.5 px-3 py-1.5 border border-retro-border text-xs text-gray-400 hover:text-retro-cyan hover:border-retro-cyan transition-colors"
+            aria-label="New review"
+          >
+            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+            </svg>
+            New Review
+          </button>
+        </div>
+        {/* Chat */}
+        <ChatView
+          messages={messages}
+          onSubmit={handleSubmit}
+          disabled={isLoading}
+          sessionId={activeSessionId}
+        />
+      </div>
+    </div>
   );
 }

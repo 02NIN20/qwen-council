@@ -32,6 +32,8 @@ from backend.models.db import (
     init_db,
 )
 from backend.models.schemas import (
+    ChatRequest,
+    ChatResponse,
     HealthResponse,
     MemoryPattern,
     ReviewRequest,
@@ -121,6 +123,45 @@ async def review_code(payload: ReviewRequest):
         raise HTTPException(
             status_code=500, detail="Council execution failed"
         )
+
+
+@app.post("/api/chat", response_model=ChatResponse)
+async def chat_followup(payload: ChatRequest):
+    """Answer a follow-up question about a previous review session."""
+    from openai import AsyncOpenAI
+    try:
+        client = AsyncOpenAI(
+            api_key=settings.qwen_api_key,
+            base_url=settings.qwen_base_url,
+        )
+
+        system_prompt = (
+            "You are a code review assistant answering follow-up questions about a previous analysis. "
+            "Use the provided context (findings, code, discussion) to give specific, actionable answers. "
+            "Be concise but thorough. If you need more context, say so."
+        )
+
+        user_content = f"### Context from code review:\n{payload.context or 'No additional context provided.'}\n\n### Question:\n{payload.message}"
+
+        resp = await client.chat.completions.create(
+            model=settings.qwen_model,
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_content},
+            ],
+            max_tokens=1000,
+            temperature=0.3,
+        )
+
+        answer = resp.choices[0].message.content or "I couldn't generate a response."
+
+        return ChatResponse(
+            response=answer,
+            session_id=payload.session_id,
+        )
+    except Exception:
+        logger.exception("Chat follow-up failed")
+        raise HTTPException(status_code=500, detail="Failed to generate response")
 
 
 @app.get("/api/sessions", response_model=list[SessionSummary])
