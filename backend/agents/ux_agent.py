@@ -15,10 +15,10 @@ class UXAgent(BaseAgent):
         super().__init__(
             name="ux",
             role_description=(
-                "experiencia de usuario (UX) y accesibilidad web. "
-                "Buscas: problemas de accesibilidad (a11y), falta de internacionalización (i18n), "
-                "mensajes de error poco claros, problemas de contraste, navegación por teclado "
-                "deficiente, y cualquier barrera que afecte la usabilidad."
+                "user experience (UX) and web accessibility. "
+                "You look for: accessibility issues (a11y), missing internationalisation (i18n), "
+                "unclear error messages, contrast problems, poor keyboard navigation, "
+                "and any barriers that affect usability."
             ),
         )
 

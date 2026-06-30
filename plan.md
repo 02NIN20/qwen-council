@@ -1,149 +1,147 @@
-# Qwen Council — Plan de Implementación
+# Qwen Council — Implementation Plan
 
-## Información del Proyecto
+## Project Information
 
 - **Hackathon**: Global AI Hackathon Series with Qwen Cloud (Devpost)
 - **Track**: 3 — Agent Society
 - **Deadline**: July 9, 2026
-- **Participantes**: ~6,000
-- **Premio**: $7,000 + $3,000 en créditos cloud
+- **Participants**: ~6,000
+- **Prize**: $7,000 + $3,000 in cloud credits
 
-## Concepto
+## Concept
 
-**Qwen Council** es un sistema multi-agente donde 5 especialistas con memoria persistente debaten colaborativamente para realizar code review. La innovación clave es un **protocolo de comunicación inter-agente** basado en principios de lingüística cognitiva (Pirámide Invertida, Dado-Nuevo, alta cohesión, autosuficiencia), donde cada mensaje entre agentes está estructurado para minimizar ambigüedad y maximizar la eficiencia del debate.
-
----
-
-## 1. Agentes del Consejo
-
-| ID | Agente | Especialidad |
-|:---|:-------|:-------------|
-| `security` | 🛡️ Seguridad | Inyección SQL, XSS, hardcoded secrets, autenticación, OWASP Top 10 |
-| `architecture` | 🏗️ Arquitectura | Patrones de diseño, acoplamiento, SOLID, escalabilidad, separación de concerns |
-| `quality` | 📐 Calidad | Estilo de código, convenciones, código muerto, tests faltantes, complejidad ciclomática |
-| `performance` | ⚡ Performance | Cuellos de botella, N+1 queries, falta de caché, uso ineficiente de recursos |
-| `ux` | ♿ UX / Accesibilidad | Accesibilidad (a11y), i18n, mensajes de error, feedback al usuario, contraste |
+**Qwen Council** is a multi-agent system where 5 specialised agents with persistent memory collaboratively debate to perform code review. The key innovation is an **inter-agent communication protocol** based on cognitive linguistics principles (Inverted Pyramid, Given-New, high cohesion, self-sufficiency), where each message between agents is structured to minimise ambiguity and maximise debate efficiency.
 
 ---
 
-## 2. Protocolo de Comunicación
+## 1. Council Agents
 
-### Formato de Mensaje: Pirámide Invertida
+| ID | Agent | Speciality |
+|:---|:------|:-----------|
+| `security` | 🛡️ Security | SQL injection, XSS, hardcoded secrets, authentication flaws, OWASP Top 10 |
+| `architecture` | 🏗️ Architecture | Design patterns, coupling, SOLID principles, scalability, separation of concerns |
+| `quality` | 📐 Quality | Code style, conventions, dead code, missing tests, cyclomatic complexity |
+| `performance` | ⚡ Performance | N+1 queries, cache, inefficient loops, bottlenecks, blocking async code |
+| `ux` | ♿ UX / Accessibility | Accessibility (a11y), i18n, error messages, contrast, keyboard navigation |
 
-Cada agente produce mensajes con esta estructura:
+---
+
+## 2. Communication Protocol
+
+### Message Format: Inverted Pyramid
+
+Each agent produces messages with this structure:
 
 ```
-HALLAZGO: [conclusión principal en 1 línea]
-··· Detalle: [evidencia concreta del código: archivo, línea, fragmento]
-··· Impacto: [Crítico / Alto / Medio / Bajo]
-··· Propuesta: [acción correctiva sugerida]
+FINDING: [one-line main conclusion]
+··· Detail: [concrete evidence: file, line, code fragment]
+··· Impact: [Critical | High | Medium | Low]
+··· Proposal: [suggested corrective action]
 ```
 
-### Principios aplicados
+### Principles Applied
 
-| Principio | Aplicación en el protocolo |
-|:-----------|:---------------------------|
-| **Pirámide invertida** | El hallazgo principal va PRIMERO, en una línea. El lector (otro agente) entiende lo esencial en 1 segundo. |
-| **Dado-Nuevo (Given-New)** | En rondas 2+, cada agente empieza refiriéndose explícitamente a hallazgos de otros: *"Coincidiendo con [Agente] sobre [hallazgo], agrego que..."* |
-| **Alta cohesión** | Conectores explícitos (Coincido, Discrepo, Complemento). Referencias directas a líneas de código. |
-| **Autosuficiencia** | Cada mensaje incluye el contexto mínimo para entenderse sin leer mensajes anteriores. |
-| **Minimalismo** | Sin relleno. Solo: hallazgo, evidencia, impacto, propuesta. |
+| Principle | Application in Protocol |
+|:----------|:------------------------|
+| **Inverted Pyramid** | The main finding comes FIRST (one line). The reader (another agent) grasps the essence in 1 second. |
+| **Given-New** | In rounds 2+, each agent starts by explicitly referencing other agents' findings: *"Agreeing with [Agent] on [finding], I add that..."* |
+| **High cohesion** | Explicit connectors (Agree, Disagree, Build upon). Direct references to code lines. |
+| **Self-sufficiency** | Each message includes minimum context to be understood without reading previous messages. |
+| **Minimalism** | No filler. Only: finding, evidence, impact, proposal. |
 
 ---
 
-## 3. Ciclo de Debate
+## 3. Debate Cycle
 
-### Ronda 1: Análisis Individual
-- Cada agente recibe el código fuente completo
-- Produce su análisis individual en formato Pirámide Invertida
-- Los 5 outputs se recopilan para la ronda 2
+### Round 1: Individual Analysis
+- Each agent receives the full source code
+- Produces individual analysis in Inverted Pyramid format
+- All 5 outputs collected for round 2
 
-### Ronda 2: Debate Cruzado
-- Cada agente recibe los outputs de los otros 4 agentes
-- Aplica Dado-Nuevo: "Coincido/discrepo con [Agente] sobre [hallazgo]..."
-- Puede: confirmar, refutar, matizar, o agregar evidencia adicional
-- Los 5 outputs actualizados se recopilan para la ronda 3
+### Round 2: Cross-Debate
+- Each agent receives the outputs from the other 4 agents
+- Applies Given-New: "Agreeing/disagreeing with [Agent] on [finding]..."
+- Can: confirm, refute, qualify, or add additional evidence
+- All 5 updated outputs collected for round 3
 
-### Ronda 3: Refinamiento
-- Cada agente ve los debates de ronda 2
-- Actualiza su postura: mantiene, modifica o retira sus hallazgos
-- Produce versión final de sus hallazgos
+### Round 3: Refinement
+- Each agent sees the debates from round 2
+- Updates position: KEEP, MODIFY, or WITHDRAW findings
+- Produces final version of findings
 
-### Síntesis Final
-- Un agente consolidador (o paso automático) produce el reporte final
-- Para cada hallazgo: voto de cada agente, nivel de consenso, prioridad
-- Formato del reporte:
+### Final Synthesis
+- A consolidator step produces the final report
+- For each finding: each agent's vote, consensus level, priority
+- Report format:
 
 ```
 ═══════════════════════════════════════════════════════
-  REPORTE DE CODE REVIEW — QWEN COUNCIL
+  CODE REVIEW REPORT — QWEN COUNCIL
 ═══════════════════════════════════════════════════════
 
-ARCHIVO: src/app.py
+FILE: src/app.py
 
-HALLAZGOS:
+FINDINGS:
 
-1. [CRÍTICO] Inyección SQL en línea 45
-   Votos: Seguridad(CRÍTICO) + Arquitecto(ALTO) + Calidad(ALTO)
-   Consenso: 5/5
-   Propuesta: Usar consultas parametrizadas
+1. [CRITICAL] SQL injection at line 45
+   Votes: Security(CRITICAL) + Architecture(HIGH) + Quality(HIGH)
+   Consensus: 5/5
+   Proposal: Use parameterised queries
 
-2. [ALTO] Función de 300 líneas sin dividir
-   Votos: Calidad(ALTO) + Arquitecto(ALTO) + Performance(MEDIO)
-   Consenso: 4/5 (UX se abstiene)
-   Propuesta: Extraer validación y procesamiento a módulos separados
-
-...
+2. [HIGH] 300-line function without decomposition
+   Votes: Quality(HIGH) + Architecture(HIGH) + Performance(MEDIUM)
+   Consensus: 4/5 (UX abstains)
+   Proposal: Extract validation and processing to separate modules
 ```
 
 ---
 
-## 4. Arquitectura de Memoria (3 Niveles + Curva de Olvido)
+## 4. Memory Architecture (3 Levels + Forgetting Curve)
 
-### Nivel 1: Memoria de Trabajo (volátil)
-| Atributo | Valor |
-|:---------|:------|
-| Almacenamiento | Memoria Python (dict en el orquestador) |
-| Contenido | Código siendo revisado, hallazgos de ronda actual, estado del debate |
-| Ciclo de vida | Se crea al iniciar sesión, se destruye al cerrar |
-| Al cerrar | Los hallazgos pasan a Episódica (Nivel 2) |
+### Level 1: Working Memory (volatile)
+| Attribute | Value |
+|:----------|:------|
+| Storage | Python dict in the orchestrator |
+| Content | Current code being reviewed, current round findings, debate state |
+| Lifecycle | Created at session start, destroyed at session end |
+| On close | Findings promoted to Episodic (Level 2) |
 
-### Nivel 2: Memoria Episódica (PostgreSQL)
-| Atributo | Valor |
-|:---------|:------|
-| Almacenamiento | Tabla `episodic_memory` en Alibaba RDS PostgreSQL |
-| Contenido | Sesiones completas: código revisado, hallazgos, votos, decisiones, timestamp |
-| Retención | Últimas 20 sesiones activas |
-| Curva de olvido | Score base = 1.0. Decae -0.1/día sin referencia. Se recupera +0.3 al ser referenciado. Umbral de archive: score < 0.3. |
-| Promoción | Si un patrón aparece 3+ veces en distintas sesiones → se promueve a Semántica |
+### Level 2: Episodic Memory (PostgreSQL)
+| Attribute | Value |
+|:----------|:------|
+| Storage | `episodic_memory` table in Alibaba RDS PostgreSQL |
+| Content | Complete sessions: reviewed code, findings, votes, decisions, timestamp |
+| Retention | Last 20 active sessions |
+| Forgetting curve | Base score = 1.0. Decays -0.1/day without reference. Recovers +0.3 when referenced. Archive threshold: score < 0.3. |
+| Promotion | If a pattern appears 3+ times across different sessions → promoted to Semantic |
 
-### Nivel 3: Memoria Semántica (PostgreSQL + pgvector)
-| Atributo | Valor |
-|:---------|:------|
-| Almacenamiento | Tabla `semantic_memory` con embeddings pgvector |
-| Contenido | Preferencias del usuario, reglas aprendidas, patrones consolidados, decisiones arquitectónicas |
-| Embeddings | Generados con Qwen API (text-embedding) |
-| Ciclo de vida | Permanente hasta invalidación explícita del usuario |
-| Inyección | Solo memorias con score > 0.5 se inyectan en el prompt de nueva sesión |
+### Level 3: Semantic Memory (PostgreSQL + pgvector)
+| Attribute | Value |
+|:----------|:------|
+| Storage | `semantic_memory` table with pgvector embeddings |
+| Content | User preferences, learned rules, consolidated patterns, architectural decisions |
+| Embeddings | Generated with Qwen API (text-embedding) |
+| Lifecycle | Permanent until explicit user invalidation |
+| Injection | Only memories with score > 0.5 injected into new session prompts |
 
 ---
 
-## 5. Stack Tecnológico
+## 5. Tech Stack
 
-| Componente | Tecnología | Razón |
-|:-----------|:-----------|:------|
-| LLM | Qwen2.5 (Qwen Cloud API) | Obligatorio para la hackathon |
-| Backend | Python 3.11 + FastAPI | Rápido, async, tipado |
-| Base de datos | PostgreSQL 15 + pgvector | Embeddings + consultas híbridas |
-| Frontend | React 18 + Tailwind CSS + Vite | Dashboard visual de debate en vivo, control total de UI |
-| Cache | Redis (Memory DB Alibaba) | Sesiones activas, rate limiting |
-| Contenedores | Docker + docker-compose | Despliegue reproducible |
-| Cloud | Alibaba ECS + RDS | Requisito de la hackathon |
+| Component | Technology | Reason |
+|:----------|:-----------|:-------|
+| LLM | Qwen2.5 (Qwen Cloud API) | Required for the hackathon |
+| Backend | Python 3.11 + FastAPI | Fast, async, typed |
+| Database | PostgreSQL 15 + pgvector | Embeddings + hybrid queries |
+| Frontend | React 18 + Tailwind CSS + Vite | Live debate dashboard, full UI control |
+| Containers | Docker + docker-compose | Reproducible deployment |
+| Cloud | Alibaba ECS + RDS | Hackathon requirement |
 | API Base | https://dashscope-intl.aliyuncs.com/compatible-mode/v1 | OpenAI-compatible |
+| CI/CD | GitHub Actions → ghcr.io → Alibaba ECS | Automated deployment from GitHub |
 
 ---
 
-## 6. Estructura del Repositorio
+## 6. Repository Structure
 
 ```
 qwen-council/
@@ -153,9 +151,12 @@ qwen-council/
 ├── docker-compose.yml
 ├── Dockerfile
 ├── plan.md
+├── .github/
+│   └── workflows/
+│       └── deploy.yml
 ├── docs/
-│   ├── architecture.md          # Diagrama + descripción
-│   └── alibaba-deployment.md    # Prueba de despliegue en Alibaba
+│   ├── architecture.md          # Diagram + description
+│   └── alibaba-deployment.md    # Alibaba deployment proof
 ├── backend/
 │   ├── main.py                  # FastAPI app
 │   ├── config.py                # Settings (Qwen API key, DB URL, etc.)
@@ -165,7 +166,7 @@ qwen-council/
 │   │   └── db.py                # SQLAlchemy engine + session
 │   ├── agents/
 │   │   ├── __init__.py
-│   │   ├── base_agent.py        # Clase base para todos los agentes
+│   │   ├── base_agent.py        # Base class for all agents
 │   │   ├── security_agent.py
 │   │   ├── architecture_agent.py
 │   │   ├── quality_agent.py
@@ -173,15 +174,15 @@ qwen-council/
 │   │   └── ux_agent.py
 │   ├── council/
 │   │   ├── __init__.py
-│   │   ├── orchestrator.py      # Orquestador del debate (3 rondas)
-│   │   ├── protocol.py          # Formateo de mensajes Pirámide Invertida
-│   │   └── synthesizer.py       # Síntesis final + reporte
+│   │   ├── orchestrator.py      # 3-round debate orchestrator
+│   │   ├── protocol.py          # Inverted Pyramid formatting
+│   │   └── synthesizer.py       # Final synthesis + report
 │   └── memory/
 │       ├── __init__.py
-│       ├── working_memory.py    # Nivel 1 (volátil)
-│       ├── episodic_memory.py   # Nivel 2 (PostgreSQL + olvido)
-│       ├── semantic_memory.py   # Nivel 3 (pgvector)
-│       └── consolidator.py      # Promoción Episódica → Semántica
+│       ├── working_memory.py    # Level 1 (volatile)
+│       ├── episodic_memory.py   # Level 2 (PostgreSQL + forgetting)
+│       ├── semantic_memory.py   # Level 3 (pgvector)
+│       └── consolidator.py      # Episodic → Semantic promotion
 ├── frontend/
 │   ├── index.html
 │   ├── vite.config.ts
@@ -191,17 +192,17 @@ qwen-council/
 │   │   ├── main.tsx
 │   │   ├── App.tsx
 │   │   ├── api/
-│   │   │   └── council.ts           # Llamadas al backend FastAPI
+│   │   │   └── council.ts
 │   │   ├── components/
-│   │   │   ├── CodeInput.tsx         # Editor de código
-│   │   │   ├── AgentCard.tsx         # Tarjeta individual de agente
-│   │   │   ├── AgentGrid.tsx         # Grid de 5 agentes con estados
-│   │   │   ├── DebateTimeline.tsx    # Timeline de rondas (1/2/3)
-│   │   │   ├── MessageBubble.tsx     # Burbuja individual de hallazgo
-│   │   │   ├── FinalReport.tsx       # Tabla de reporte final
-│   │   │   └── CouncilHeader.tsx     # Encabezado con rondas
+│   │   │   ├── CodeInput.tsx
+│   │   │   ├── AgentCard.tsx
+│   │   │   ├── AgentGrid.tsx
+│   │   │   ├── DebateTimeline.tsx
+│   │   │   ├── MessageBubble.tsx
+│   │   │   ├── FinalReport.tsx
+│   │   │   └── CouncilHeader.tsx
 │   │   └── types/
-│   │       └── index.ts              # Tipos (Agent, Finding, Round, Report)
+│   │       └── index.ts
 │   └── public/
 └── tests/
     ├── test_agents.py
@@ -211,52 +212,53 @@ qwen-council/
 
 ---
 
-## 7. Plan de Implementación (7 Días)
+## 7. Implementation Plan (7 Days)
 
-| Día | Actividad | Subagente |
-|:---:|:----------|:----------|
-| 1 | Backend: FastAPI + config + modelos DB + Dockerfile | @backend-dev |
-| 2 | Agentes: 5 prompts + base_agent + protocolo comunicación | @backend-dev |
-| 3 | Consejo: orquestador 3 rondas + synthesizer | @backend-dev |
-| 4 | Memoria: 3 niveles + pgvector + curva de olvido + consolidación | @db-architect + @backend-dev |
-| 5 | Frontend: React + Tailwind + Vite (CodeInput, AgentGrid, DebateTimeline, FinalReport) | @frontend-dev |
-| 6 | Tests + Seguridad + Despliegue en Alibaba ECS | @tester + @security + @devops |
-| 7 | Video 3 min + Diagrama arquitectura + README + Docs finales | @documenter |
+| Day | Activity | Subagent |
+|:---:|:---------|:---------|
+| 1 | Backend: FastAPI + config + DB models + Docker | ✅ @backend-dev |
+| 2 | Agents: 5 prompts + base_agent + protocol | ✅ @backend-dev |
+| 3 | Council: orchestrator 3 rounds + synthesizer | ✅ @backend-dev |
+| 4 | Memory: 3 levels + pgvector + forgetting curve + consolidation | ✅ @backend-dev |
+| 5 | Frontend: React + Tailwind + Vite (CodeInput, AgentGrid, DebateTimeline, FinalReport) | ✅ @frontend-dev |
+| 6 | Tests + Security + GitHub Actions CI/CD + Deploy to Alibaba ECS | @tester + @security + @devops |
+| 7 | Video 3 min + Architecture diagram + README + Final docs | @documenter |
 
 ---
 
-## 8. Video de 3 Minutos (Estructura)
+## 8. Video Structure (3 Minutes)
 
 ```
-0:00-0:30 │ PROBLEMA: Los code reviews humanos son lentos y un solo agente AI es limitado
-0:30-1:00 │ ARQUITECTURA: 5 especialistas + protocolo Pirámide Invertida + memoria 3 niveles
-1:00-2:00 │ DEMO: Pegar código → Ronda 1 (individual) → Ronda 2 (debate) → Ronda 3 + Síntesis
-2:00-2:30 │ MEMORIA: "¿Recuerdas mi preferencia de la semana pasada?" → la recupera
-2:30-3:00 │ MÉTRICA: Sin consejo vs con consejo. Despedida + link al repo
+0:00-0:30 │ PROBLEM: Code reviews are slow and single-agent AI is limited
+0:30-1:00 │ ARCHITECTURE: 5 specialists + Inverted Pyramid protocol + 3-level memory
+1:00-2:00 │ DEMO: Paste code → Round 1 (individual) → Round 2 (debate) → Round 3 + Synthesis
+2:00-2:30 │ MEMORY: "Remember my preference from last week?" → retrieves it
+2:30-3:00 │ METRIC: Without council vs with council. Closing + repo link
 ```
 
 ---
 
-## 9. Criterios de Evaluación (Cómo ganamos puntos)
+## 9. Judging Criteria (How We Score)
 
-| Criterio | Peso | Cómo lo cumplimos |
-|:---------|:----:|:------------------|
-| **Technical Depth** | 30% | Qwen Cloud API + pgvector + sistema multi-agente con protocolo propio |
-| **Innovation & Creativity** | 30% | Protocolo lingüístico inter-agente (Pirámide Invertida + Dado-Nuevo). Memoria con curva de olvido. Único. |
-| **Problem Value & Impact** | 25% | Code review es un problema real y medible. Ahorra horas/equipo/semana. |
-| **Presentation & Docs** | 15% | Diagrama claro, video conciso, README impecable, demo funcional en vivo. |
+| Criterion | Weight | How We Meet It |
+|:----------|:------:|:---------------|
+| **Technical Depth** | 30% | Qwen Cloud API + pgvector + multi-agent system with custom protocol |
+| **Innovation & Creativity** | 30% | Linguistic inter-agent protocol (Inverted Pyramid + Given-New). Memory with forgetting curve. Unique. |
+| **Problem Value & Impact** | 25% | Code review is a real, measurable problem. Saves hours/team/week. |
+| **Presentation & Docs** | 15% | Clear diagram, concise video, polished README, live functional demo. |
 
 ---
 
-## 10. Definición de Éxito (MVP)
+## 10. MVP Definition
 
-- [x] 5 agentes responden con formato Pirámide Invertida
-- [x] 3 rondas de debate funcionan end-to-end
-- [x] Reporte de síntesis con votos y consenso
-- [x] Memoria episódica persiste entre sesiones
-- [x] Curva de olvido funciona (score decae y se recupera)
-- [x] Frontend Streamlit muestra el debate en vivo
-- [x] Desplegado en Alibaba ECS con RDS
-- [x] Video de 3 min en YouTube
-- [x] Diagrama de arquitectura en docs/
-- [ ] **Plus**: comparativa "con consejo vs sin consejo" con métricas
+- [x] 5 agents respond with Inverted Pyramid format
+- [x] 3 debate rounds work end-to-end
+- [x] Synthesis report with votes and consensus
+- [x] Episodic memory persists between sessions
+- [x] Forgetting curve works (score decays and recovers)
+- [x] React frontend shows live debate
+- [ ] Deployed on Alibaba ECS with RDS
+- [ ] GitHub Actions CI/CD pipeline
+- [ ] 3-min video on YouTube
+- [ ] Architecture diagram in docs/
+- [ ] **Plus**: comparison "with council vs without council" with metrics

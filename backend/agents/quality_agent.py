@@ -15,10 +15,10 @@ class QualityAgent(BaseAgent):
         super().__init__(
             name="quality",
             role_description=(
-                "calidad de código y buenas prácticas de ingeniería de software. "
-                "Buscas: código muerto, estilo inconsistente, complejidad ciclomática alta, "
-                "funciones demasiado largas, falta de tests, violaciones de convenciones, "
-                "y código que no sigue el principio de responsabilidad única."
+                "code quality and software engineering best practices. "
+                "You look for: dead code, inconsistent style, high cyclomatic complexity, "
+                "overly long functions, missing tests, convention violations, "
+                "and code that does not follow the single responsibility principle."
             ),
         )
 

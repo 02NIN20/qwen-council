@@ -1,7 +1,7 @@
 """Pydantic models for requests, responses, and internal data structures.
 
 Every Finding follows the Inverted Pyramid format:
-  HALLAZGO + Detalle + Impacto + Propuesta
+  FINDING + Detail + Impact + Proposal
 """
 
 from __future__ import annotations
@@ -21,19 +21,19 @@ class Finding(BaseModel):
     """A single finding produced by an agent."""
 
     agent: str = Field(..., description="Agent identifier (security, architecture, …)")
-    hallazgo: str = Field(..., description="Main conclusion in one line (HALLAZGO)")
+    hallazgo: str = Field(..., description="Main conclusion in one line")
     detalle: str = Field(..., description="Concrete evidence with file/line/fragment")
-    impacto: str = Field(..., description="Severity: Crítico | Alto | Medio | Bajo")
+    impacto: str = Field(..., description="Severity: Critical | High | Medium | Low")
     propuesta: str = Field(..., description="Suggested corrective action")
     ronda: int = Field(1, description="Round in which this finding was produced")
 
     def dict_pyramid(self) -> dict[str, Any]:
         """Return a dict keyed by the Inverted Pyramid labels."""
         return {
-            "HALLAZGO": self.hallazgo,
-            "Detalle": self.detalle,
-            "Impacto": self.impacto,
-            "Propuesta": self.propuesta,
+            "FINDING": self.hallazgo,
+            "Detail": self.detalle,
+            "Impact": self.impacto,
+            "Proposal": self.propuesta,
         }
 
 
@@ -53,7 +53,7 @@ class ConsolidatedFinding(BaseModel):
         default_factory=dict, description="Agent → severity mapping"
     )
     consensus_level: str = Field(
-        "Desconocido", description="Alto | Medio | Bajo | Sin consenso"
+        "Unknown", description="High | Medium | Low | No consensus"
     )
     consensus_score: float = Field(0.0, description="0.0 – 1.0 agreement ratio")
 

@@ -78,50 +78,50 @@ class BaseAgent(ABC):
     def _build_system_prompt(self) -> str:
         """System prompt that sets the agent's role and output format."""
         return (
-            f"Eres un experto en {self.role_description} especializado en code review. "
-            "Tu tarea es analizar código fuente y encontrar problemas relacionados con tu especialidad.\n\n"
-            "Debes responder ÚNICAMENTE con una lista de hallazgos en el siguiente formato "
-            "(Pirámide Invertida). Cada hallazgo debe tener esta estructura exacta:\n\n"
-            "HALLAZGO: <conclusión principal en 1 línea>\n"
-            "··· Detalle: <evidencia concreta del código: archivo, línea, fragmento>\n"
-            "··· Impacto: <Crítico | Alto | Medio | Bajo>\n"
-            "··· Propuesta: <acción correctiva sugerida>\n\n"
-            "Reglas:\n"
-            "- No incluyas texto adicional fuera del formato especificado.\n"
-            "- Si no encuentras problemas, responde únicamente: \"NO_HAY_HALLAZGOS\"\n"
-            "- Cada hallazgo debe estar separado por una línea en blanco.\n"
-            "- Sé específico: menciona líneas de código, fragmentos, y nombres de variables/funciones reales.\n"
-            "- Usa el nivel de impacto correcto: Crítico (vulnerabilidad/error grave), "
-            "Alto (problema significativo), Medio (mejora importante), Bajo (sugerencia menor)."
+            f"You are an expert in {self.role_description}, specialised in code review. "
+            "Your task is to analyse source code and find issues related to your speciality.\n\n"
+            "You MUST respond ONLY with a list of findings in the following "
+            "**Inverted Pyramid** format. Each finding must have this exact structure:\n\n"
+            "FINDING: <one-line conclusion>\n"
+            "··· Detail: <concrete evidence: file, line, code fragment>\n"
+            "··· Impact: <Critical | High | Medium | Low>\n"
+            "··· Proposal: <suggested corrective action>\n\n"
+            "Rules:\n"
+            "- Do NOT include any text outside the specified format.\n"
+            "- If you find no issues, respond ONLY with: \"NO_FINDINGS\"\n"
+            "- Separate each finding with a blank line.\n"
+            "- Be specific: mention actual code lines, fragments, variable/function names.\n"
+            "- Use the correct impact level: Critical (vulnerability/severe error), "
+            "High (significant problem), Medium (important improvement), Low (minor suggestion)."
         )
 
     def _build_round_intro(self, round: int) -> str:
         """Instructions for the current debate round."""
         if round == 1:
             return (
-                "### Ronda 1: Análisis Individual\n"
-                "Analiza el código a continuación y produce tus hallazgos de forma independiente."
+                "### Round 1: Individual Analysis\n"
+                "Analyse the code below and produce your findings independently."
             )
         elif round == 2:
             return (
-                "### Ronda 2: Debate Cruzado\n"
-                "A continuación recibirás los hallazgos de otros agentes del consejo. "
-                "Debes aplicar el principio **Dado-Nuevo**: cada hallazgo debe empezar "
-                "refiriéndose explícitamente a un hallazgo de otro agente.\n\n"
-                "Usa frases como:\n"
-                "- \"Coincidiendo con [Agente] sobre [hallazgo], agrego que...\"\n"
-                "- \"Discrepo de [Agente] sobre [hallazgo] porque...\"\n"
-                "- \"Complementando a [Agente] sobre [hallazgo], añado...\"\n\n"
-                "Mantén el mismo formato de Pirámide Invertida para cada hallazgo."
+                "### Round 2: Cross-Debate\n"
+                "Below you will receive findings from other council agents. "
+                "You must apply the **Given-New** principle: each finding must start "
+                "by explicitly referencing another agent's finding.\n\n"
+                "Use phrases such as:\n"
+                "- \"Agreeing with [Agent] on [finding], I add that...\"\n"
+                "- \"I disagree with [Agent] on [finding] because...\"\n"
+                "- \"Building on [Agent]'s point about [finding], I note that...\"\n\n"
+                "Keep the same Inverted Pyramid format for each finding."
             )
         elif round == 3:
             return (
-                "### Ronda 3: Refinamiento Final\n"
-                "Has visto los argumentos de todos los agentes. Ahora debes refinar tu postura:\n"
-                "- Puedes MANTENER, MODIFICAR o RETIRAR cada uno de tus hallazgos.\n"
-                "- Si modificas un hallazgo, explica brevemente por qué.\n"
-                "- Si retiras un hallazgo, indica explícitamente: \"RETIRADO: ...\"\n"
-                "- Mantén el formato Pirámide Invertida para los hallazgos que conservas."
+                "### Round 3: Final Refinement\n"
+                "You have seen all agents' arguments. Now refine your position:\n"
+                "- You may **KEEP**, **MODIFY**, or **WITHDRAW** each of your findings.\n"
+                "- If you modify a finding, briefly explain why.\n"
+                "- If you withdraw a finding, state explicitly: \"WITHDRAWN: ...\"\n"
+                "- Keep the Inverted Pyramid format for retained findings."
             )
         return ""
 
@@ -129,21 +129,21 @@ class BaseAgent(ABC):
         """Format previous-round findings as context for the agent."""
         if not context or round == 1:
             return ""
-        block_parts = ["\n### Hallazgos de la ronda anterior:\n"]
+        block_parts = ["\n### Previous round findings:\n"]
         for i, item in enumerate(context, 1):
-            agent_name = item.get("agent", f"Agente {i}")
+            agent_name = item.get("agent", f"Agent {i}")
             block_parts.append(f"\n--- {agent_name} ---")
             hallazgo = item.get("hallazgo", "")
             detalle = item.get("detalle", "")
             impacto = item.get("impacto", "")
             propuesta = item.get("propuesta", "")
-            block_parts.append(f"HALLAZGO: {hallazgo}")
+            block_parts.append(f"FINDING: {hallazgo}")
             if detalle:
-                block_parts.append(f"··· Detalle: {detalle}")
+                block_parts.append(f"··· Detail: {detalle}")
             if impacto:
-                block_parts.append(f"··· Impacto: {impacto}")
+                block_parts.append(f"··· Impact: {impacto}")
             if propuesta:
-                block_parts.append(f"··· Propuesta: {propuesta}")
+                block_parts.append(f"··· Proposal: {propuesta}")
         return "\n".join(block_parts)
 
     def _build_user_prompt(
@@ -156,21 +156,21 @@ class BaseAgent(ABC):
         parts = [
             self._build_round_intro(round),
             self._build_context_block(context, round),
-            f"\n\n### Código a revisar:\n\n```\n{code}\n```",
+            f"\n\n### Code to review:\n\n```\n{code}\n```",
         ]
         if round > 1:
             parts.append(
-                "\n\nInstrucciones adicionales:\n"
-                "- Recuerda aplicar Dado-Nuevo en tus respuestas.\n"
-                "- Cada hallazgo debe empezar con una referencia explícita a otro agente.\n"
-                "- Mantén el formato Pirámide Invertida."
+                "\n\nAdditional instructions:\n"
+                "- Remember to apply Given-New in your responses.\n"
+                "- Each finding must start with an explicit reference to another agent.\n"
+                "- Keep the Inverted Pyramid format."
             )
         if round == 3:
             parts.append(
-                "\n\nInstrucciones adicionales:\n"
-                "- Indica si MANTIENES, MODIFICAS o RETIRAS cada hallazgo.\n"
-                "- Si RETIRAS, pon \"RETIRADO:\" al inicio.\n"
-                "- Para hallazgos que mantienes, usa el formato Pirámide Invertida."
+                "\n\nAdditional instructions:\n"
+                "- Indicate whether you **KEEP**, **MODIFY**, or **WITHDRAW** each finding.\n"
+                "- If WITHDRAWN, prefix with \"WITHDRAWN:\".\n"
+                "- For retained findings, use the Inverted Pyramid format."
             )
         return "\n".join(parts)
 
@@ -191,10 +191,10 @@ class BaseAgent(ABC):
                 max_tokens=2048,
             )
             content: str | None = response.choices[0].message.content
-            return content or "NO_HAY_HALLAZGOS"
+            return content or "NO_FINDINGS"
         except Exception:
             logger.exception("[%s] LLM call failed", self.name)
-            return "NO_HAY_HALLAZGOS"
+            return "NO_FINDINGS"
 
     # ──────────────────────────────────────────────
     #  Response parsing
@@ -202,14 +202,14 @@ class BaseAgent(ABC):
 
     def _parse_findings(self, text: str, round: int) -> list[Finding]:
         """Parse the LLM response into a list of Findings."""
-        if not text or text.strip() == "NO_HAY_HALLAZGOS":
+        if not text or text.strip() == "NO_FINDINGS":
             return []
 
         findings: list[Finding] = []
         blocks = text.strip().split("\n\n")
 
         for block in blocks:
-            if "RETIRADO:" in block:
+            if "WITHDRAWN:" in block:
                 continue  # skip withdrawn findings
             block = block.strip()
             if not block:
@@ -224,46 +224,46 @@ class BaseAgent(ABC):
     def _parse_single_finding(self, block: str, round: int) -> Finding | None:
         """Parse a single Inverted Pyramid text block into a Finding."""
         lines = block.split("\n")
-        hallazgo = ""
-        detalle = ""
-        impacto = ""
-        propuesta = ""
+        finding_text = ""
+        detail = ""
+        impact = ""
+        proposal = ""
 
         for line in lines:
             line = line.strip()
-            if line.startswith("HALLAZGO:"):
-                hallazgo = line[len("HALLAZGO:"):].strip()
-            elif line.startswith("··· Detalle:") or line.startswith("···Detalle:"):
-                detalle = line.split(":", 1)[1].strip() if ":" in line else ""
-            elif line.startswith("··· Impacto:") or line.startswith("···Impacto:"):
-                impacto = line.split(":", 1)[1].strip() if ":" in line else ""
-            elif line.startswith("··· Propuesta:") or line.startswith("···Propuesta:"):
-                propuesta = line.split(":", 1)[1].strip() if ":" in line else ""
+            if line.startswith("FINDING:"):
+                finding_text = line[len("FINDING:"):].strip()
+            elif line.startswith("··· Detail:") or line.startswith("···Detail:"):
+                detail = line.split(":", 1)[1].strip() if ":" in line else ""
+            elif line.startswith("··· Impact:") or line.startswith("···Impact:"):
+                impact = line.split(":", 1)[1].strip() if ":" in line else ""
+            elif line.startswith("··· Proposal:") or line.startswith("···Proposal:"):
+                proposal = line.split(":", 1)[1].strip() if ":" in line else ""
 
-        if not hallazgo:
+        if not finding_text:
             return None
 
-        impacto = self._normalize_impact(impacto)
+        impact = self._normalize_impact(impact)
 
         return Finding(
             agent=self.name,
-            hallazgo=hallazgo,
-            detalle=detalle,
-            impacto=impacto,
-            propuesta=propuesta,
+            hallazgo=finding_text,
+            detalle=detail,
+            impacto=impact,
+            propuesta=proposal,
             ronda=round,
         )
 
     @staticmethod
-    def _normalize_impact(impacto: str) -> str:
-        """Normalize impact level to one of Crítico|Alto|Medio|Bajo."""
-        normalized = impacto.lower().strip()
-        if "critico" in normalized or "crítico" in normalized:
-            return "Crítico"
-        if "alto" in normalized:
-            return "Alto"
-        if "medio" in normalized:
-            return "Medio"
-        if "bajo" in normalized:
-            return "Bajo"
-        return "Medio"
+    def _normalize_impact(impact: str) -> str:
+        """Normalize impact level to one of Critical|High|Medium|Low."""
+        normalized = impact.lower().strip()
+        if "critical" in normalized:
+            return "Critical"
+        if "high" in normalized:
+            return "High"
+        if "medium" in normalized:
+            return "Medium"
+        if "low" in normalized:
+            return "Low"
+        return "Medium"
