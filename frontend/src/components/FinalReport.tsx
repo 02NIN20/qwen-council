@@ -97,7 +97,7 @@ export default function FinalReport({ report, onNewReview, onHistory }: FinalRep
           </thead>
           <tbody>
             {report.findings.map((finding, idx) => {
-              const voters = Object.entries(finding.votos);
+              const voters = Object.entries(finding.votes);
               return (
                 <tr
                   key={idx}
@@ -139,12 +139,12 @@ export default function FinalReport({ report, onNewReview, onHistory }: FinalRep
                     <div className="flex items-center gap-2">
                       <div className="w-16 h-1.5 bg-slate-700 rounded-full overflow-hidden">
                         <div
-                          className={`h-full rounded-full transition-all duration-500 ${getConsensoBar(finding.consenso)}`}
-                          style={{ width: `${Math.round(finding.consenso * 100)}%` }}
+                          className={`h-full rounded-full transition-all duration-500 ${getConsensoBar(finding.consensus_score)}`}
+                          style={{ width: `${Math.round(finding.consensus_score * 100)}%` }}
                         />
                       </div>
-                      <span className={`text-xs font-semibold ${getConsensoColor(finding.consenso)}`}>
-                        {Math.round(finding.consenso * 100)}%
+                      <span className={`text-xs font-semibold ${getConsensoColor(finding.consensus_score)}`}>
+                        {Math.round(finding.consensus_score * 100)}%
                       </span>
                     </div>
                   </td>

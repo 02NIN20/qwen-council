@@ -17,7 +17,7 @@ services:
   frontend:
     build:
       context: ./frontend
-      dockerfile: Dockerfile  # you may need to create a simple nginx Dockerfile
+      dockerfile: Dockerfile
     ports:
       - "5173:80"
     depends_on:

@@ -12,8 +12,9 @@ export interface ConsolidatedFinding {
   detalle: string;
   impacto: string;
   propuesta: string;
-  votos: Record<string, string>;
-  consenso: number;
+  votes: Record<string, string>;
+  consensus_level: string;
+  consensus_score: number;
 }
 
 export interface Report {
@@ -33,11 +34,21 @@ export interface ReviewResponse {
   };
 }
 
-export interface SessionSummary {
+export interface SessionDetail {
   id: string;
-  code_hash: string;
+  code: string;
+  findings_json: any;
   score: number;
   created_at: string;
+  last_referenced_at: string | null;
+}
+
+export interface SessionSummary {
+  id: string;
+  code_preview: string;
+  score: number;
+  created_at: string;
+  finding_count: number;
 }
 
 export type AgentId = 'security' | 'architecture' | 'quality' | 'performance' | 'ux';

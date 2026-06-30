@@ -53,6 +53,7 @@ class SemanticMemoryManager:
         existing = await self._find_similar(pattern, threshold=0.85)
         if existing is not None:
             existing.strength += 1
+            await self.session.commit()
             logger.debug(
                 "Incremented strength of existing pattern '%s' (now %d)",
                 existing.pattern_text[:60],
@@ -73,6 +74,7 @@ class SemanticMemoryManager:
             strength=1,
         )
         self.session.add(record)
+        await self.session.commit()
         logger.debug(
             "Consolidated new semantic pattern: '%s' [%s]",
             pattern[:60],
@@ -101,7 +103,6 @@ class SemanticMemoryManager:
         threshold = settings.semantic_injection_threshold
 
         # Build the vector similarity query
-        embedding_str = f"[{','.join(str(v) for v in embedding)}]"
         query = (
             select(
                 SemanticMemory,
@@ -170,7 +171,6 @@ class SemanticMemoryManager:
         if embedding is None:
             return None
 
-        embedding_str = f"[{','.join(str(v) for v in embedding)}]"
         query = (
             select(SemanticMemory)
             .order_by(

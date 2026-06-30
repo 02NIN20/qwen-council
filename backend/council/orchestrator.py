@@ -21,6 +21,7 @@ from backend.agents.performance_agent import PerformanceAgent
 from backend.agents.quality_agent import QualityAgent
 from backend.agents.security_agent import SecurityAgent
 from backend.agents.ux_agent import UXAgent
+from backend.agents.vision_agent import VisionAgent
 from backend.config import settings
 from backend.council.synthesizer import synthesize
 from backend.memory.consolidator import Consolidator
@@ -43,6 +44,7 @@ class CouncilOrchestrator:
             "quality": QualityAgent(),
             "performance": PerformanceAgent(),
             "ux": UXAgent(),
+            "vision": VisionAgent(),
         }
         self.working_memory = WorkingMemory()
 
@@ -50,6 +52,7 @@ class CouncilOrchestrator:
         self,
         code: str,
         session_id: str | None = None,
+        image_url: str | None = None,
     ) -> tuple[Report, str, dict[str, Any]]:
         """Execute the full 3-round council debate.
 
@@ -59,6 +62,8 @@ class CouncilOrchestrator:
             Source code to review.
         session_id : str | None
             Existing session ID for memory continuity.
+        image_url : str | None
+            Optional image URL for visual analysis (vision agent).
 
         Returns
         -------
@@ -84,9 +89,10 @@ class CouncilOrchestrator:
             round_num=1,
             context_findings=None,
             semantic_context=semantic_patterns,
+            image_url=image_url,
         )
         all_findings[1] = round1_findings
-        round_data["round1"] = {
+        round_data["round_1"] = {
             agent: [f.model_dump() for f in findings]
             for agent, findings in round1_findings.items()
         }
@@ -104,9 +110,10 @@ class CouncilOrchestrator:
             round_num=2,
             context_findings=round1_findings,
             semantic_context=semantic_patterns,
+            image_url=image_url,
         )
         all_findings[2] = round2_findings
-        round_data["round2"] = {
+        round_data["round_2"] = {
             agent: [f.model_dump() for f in findings]
             for agent, findings in round2_findings.items()
         }
@@ -124,9 +131,10 @@ class CouncilOrchestrator:
             round_num=3,
             context_findings=round2_findings,
             semantic_context=semantic_patterns,
+            image_url=image_url,
         )
         all_findings[3] = round3_findings
-        round_data["round3"] = {
+        round_data["round_3"] = {
             agent: [f.model_dump() for f in findings]
             for agent, findings in round3_findings.items()
         }
@@ -179,6 +187,7 @@ class CouncilOrchestrator:
         round_num: int,
         context_findings: dict[str, list[Finding]] | None,
         semantic_context: list[str] | None = None,
+        image_url: str | None = None,
     ) -> dict[str, list[Finding]]:
         """Run one round across all agents in parallel."""
         # Build context list for each agent (findings from other agents)
@@ -210,13 +219,26 @@ class CouncilOrchestrator:
         tasks: dict[str, asyncio.Task[list[Finding]]] = {}
         for name, agent in self.agents.items():
             ctx = context_per_agent.get(name, [])
-            tasks[name] = asyncio.create_task(
-                agent.analyze(
-                    code=code_with_context,
-                    context=ctx,
-                    round=round_num,
+            is_vision = name == "vision"
+
+            if is_vision and image_url:
+                # Vision agent gets the image URL
+                tasks[name] = asyncio.create_task(
+                    agent.analyze(
+                        code=code_with_context,
+                        context=ctx,
+                        round=round_num,
+                        image_url=image_url,
+                    )
                 )
-            )
+            else:
+                tasks[name] = asyncio.create_task(
+                    agent.analyze(
+                        code=code_with_context,
+                        context=ctx,
+                        round=round_num,
+                    )
+                )
 
         results: dict[str, list[Finding]] = {}
         for name, task in tasks.items():

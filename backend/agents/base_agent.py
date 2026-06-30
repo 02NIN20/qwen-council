@@ -84,15 +84,15 @@ class BaseAgent(ABC):
             "**Inverted Pyramid** format. Each finding must have this exact structure:\n\n"
             "FINDING: <one-line conclusion>\n"
             "··· Detail: <concrete evidence: file, line, code fragment>\n"
-            "··· Impact: <Critical | High | Medium | Low>\n"
+            "··· Impact: <Crítico | Alto | Medio | Bajo>\n"
             "··· Proposal: <suggested corrective action>\n\n"
             "Rules:\n"
             "- Do NOT include any text outside the specified format.\n"
             "- If you find no issues, respond ONLY with: \"NO_FINDINGS\"\n"
             "- Separate each finding with a blank line.\n"
             "- Be specific: mention actual code lines, fragments, variable/function names.\n"
-            "- Use the correct impact level: Critical (vulnerability/severe error), "
-            "High (significant problem), Medium (important improvement), Low (minor suggestion)."
+            "- Use the correct impact level: Crítico (vulnerability/severe error), "
+            "Alto (significant problem), Medio (important improvement), Bajo (minor suggestion)."
         )
 
     def _build_round_intro(self, round: int) -> str:
@@ -256,14 +256,14 @@ class BaseAgent(ABC):
 
     @staticmethod
     def _normalize_impact(impact: str) -> str:
-        """Normalize impact level to one of Critical|High|Medium|Low."""
+        """Normalize impact level to one of Crítico|Alto|Medio|Bajo."""
         normalized = impact.lower().strip()
-        if "critical" in normalized:
-            return "Critical"
-        if "high" in normalized:
-            return "High"
-        if "medium" in normalized:
-            return "Medium"
-        if "low" in normalized:
-            return "Low"
-        return "Medium"
+        if "critical" in normalized or "crítico" in normalized:
+            return "Crítico"
+        if "high" in normalized or "alto" in normalized:
+            return "Alto"
+        if "medium" in normalized or "medio" in normalized:
+            return "Medio"
+        if "low" in normalized or "bajo" in normalized:
+            return "Bajo"
+        return "Medio"

@@ -1,4 +1,4 @@
-import type { ReviewResponse, SessionSummary } from '../types';
+import type { ReviewResponse, SessionDetail, SessionSummary } from '../types';
 
 const API_BASE = '/api';
 
@@ -31,6 +31,6 @@ export async function getSessions(): Promise<SessionSummary[]> {
   return fetchJson<SessionSummary[]>(`${API_BASE}/sessions`);
 }
 
-export async function getSession(sessionId: string): Promise<ReviewResponse> {
-  return fetchJson<ReviewResponse>(`${API_BASE}/sessions/${sessionId}`);
+export async function getSession(sessionId: string): Promise<SessionDetail> {
+  return fetchJson<SessionDetail>(`${API_BASE}/sessions/${sessionId}`);
 }

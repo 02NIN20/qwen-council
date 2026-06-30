@@ -49,6 +49,7 @@ class EpisodicMemoryManager:
             )
             existing.score = score
             existing.last_referenced_at = datetime.now(timezone.utc)
+            await self.session.commit()
             logger.debug("Updated episodic memory for '%s'", session_id)
             return existing
 
@@ -63,6 +64,7 @@ class EpisodicMemoryManager:
             score=score,
         )
         self.session.add(record)
+        await self.session.commit()
         logger.debug("Saved episodic memory for '%s'", session_id)
         return record
 
@@ -100,6 +102,7 @@ class EpisodicMemoryManager:
         # Apply decay to all loaded records
         for rec in records:
             rec.score = self._apply_decay(rec)
+        await self.session.commit()
         return records
 
     async def get_relevant(
@@ -167,6 +170,7 @@ class EpisodicMemoryManager:
             else:
                 rec.score = new_score
 
+        await self.session.commit()
         return archived
 
     async def cleanup_excess(self, max_active: int | None = None) -> int:
@@ -196,6 +200,7 @@ class EpisodicMemoryManager:
                     EpisodicMemory.session_id == rec.session_id
                 )
             )
+        await self.session.commit()
         logger.info("Cleaned up %d excess episodic records", excess)
         return excess
 
@@ -219,6 +224,7 @@ class EpisodicMemoryManager:
         now = datetime.now(timezone.utc)
         record.score = min(1.0, record.score + recovery)
         record.last_referenced_at = now
+        await self.session.commit()
         logger.debug(
             "Score bump for '%s': %.2f", record.session_id, record.score
         )

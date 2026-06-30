@@ -6,7 +6,7 @@ Every Finding follows the Inverted Pyramid format:
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any
 
 from pydantic import BaseModel, Field
@@ -73,7 +73,7 @@ class Report(BaseModel):
         default_factory=lambda: ["security", "architecture", "quality", "performance", "ux"]
     )
     session_id: str | None = None
-    created_at: str = Field(default_factory=lambda: datetime.utcnow().isoformat())
+    created_at: str = Field(default_factory=lambda: datetime.now(timezone.utc).isoformat())
 
 
 # ──────────────────────────────────────────────
@@ -84,8 +84,13 @@ class Report(BaseModel):
 class ReviewRequest(BaseModel):
     """POST /api/review payload."""
 
-    code: str = Field(..., min_length=1, description="Source code to review")
+    code: str = Field(..., min_length=1, max_length=50000, description="Source code to review")
     session_id: str | None = Field(None, description="Existing session identifier")
+    image_url: str | None = Field(
+        None,
+        max_length=50000,
+        description="Optional URL or base64 data URI of a screenshot/diagram for visual analysis",
+    )
 
 
 class ReviewResponse(BaseModel):
