@@ -28,7 +28,7 @@ class Settings(BaseSettings):
     # ── Server ──────────────────────────────────────────────────────
     host: str = "0.0.0.0"
     port: int = 8000
-    cors_origins: list[str] = ["http://localhost:5173", "http://localhost:3000"]
+    cors_origins: list[str] = ["*"]
 
     # ── Memory ──────────────────────────────────────────────────────
     episodic_decay_per_day: float = 0.1
