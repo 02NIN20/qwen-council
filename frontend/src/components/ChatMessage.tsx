@@ -76,6 +76,13 @@ function UserMessageView({ message }: { message: UserMessage }) {
         </span>
       </div>
 
+      {/* User's text message */}
+      {message.content && (
+        <p className="text-sm text-gray-200 leading-relaxed whitespace-pre-wrap mb-3">
+          {message.content}
+        </p>
+      )}
+
       {/* File cards */}
       {hasFileInfo && (
         <div className="flex flex-wrap gap-2 mb-3">
