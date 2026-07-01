@@ -14,7 +14,7 @@ class Settings(BaseSettings):
     # ── Qwen Cloud API ──────────────────────────────────────────────
     qwen_api_key: str = ""
     qwen_base_url: str = "https://dashscope.aliyuncs.com/compatible-mode/v1"
-    qwen_model: str = "qwen3-coder-plus"
+    qwen_model: str = "qwen3-plus"
     qwen_embedding_model: str = "text-embedding-v3"
     qwen_timeout_seconds: int = 300
 

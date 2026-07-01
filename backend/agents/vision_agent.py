@@ -25,7 +25,7 @@ class VisionAgent(BaseAgent):
 
     def __init__(self) -> None:
         # Use the VL model for vision, fall back to the default text model
-        self._vision_model = "qwen-vl-plus"
+        self._vision_model = "qwen-vl-max"
         super().__init__(
             name="vision",
             role_description=(
