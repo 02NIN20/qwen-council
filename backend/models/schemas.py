@@ -74,6 +74,9 @@ class Report(BaseModel):
     agent_metrics: dict[str, Any] = Field(
         default_factory=dict, description="Per-agent statistics (findings found, top severity, etc.)"
     )
+    token_usage: dict[str, Any] = Field(
+        default_factory=dict, description="Token usage and estimated cost breakdown"
+    )
     rounds: int = Field(3)
     participants: list[str] = Field(
         default_factory=lambda: ["security", "architecture", "quality", "performance", "ux", "vision"]

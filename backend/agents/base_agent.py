@@ -35,6 +35,7 @@ class BaseAgent(ABC):
         self.name = name
         self.role_description = role_description
         self.domain = domain
+        self._last_token_usage: dict[str, int] = {}
 
         self._client = AsyncOpenAI(
             api_key=settings.qwen_api_key,
@@ -237,7 +238,18 @@ class BaseAgent(ABC):
             temperature=0.2,
             max_tokens=256,
         )
+        # Track token usage
+        if hasattr(response, 'usage') and response.usage:
+            self._last_token_usage = {
+                "input_tokens": response.usage.prompt_tokens,
+                "output_tokens": response.usage.completion_tokens,
+                "total_tokens": response.usage.total_tokens,
+            }
         return response.choices[0].message.content or "OUT_OF_SCOPE"
+
+    def get_token_usage(self) -> dict[str, int]:
+        """Return token usage from the last LLM call."""
+        return self._last_token_usage.copy()
 
     # ──────────────────────────────────────────────
     #  LLM call
@@ -259,6 +271,13 @@ class BaseAgent(ABC):
                 max_tokens=2048,
             )
             content: str | None = response.choices[0].message.content
+            # Track token usage
+            if hasattr(response, 'usage') and response.usage:
+                self._last_token_usage = {
+                    "input_tokens": response.usage.prompt_tokens,
+                    "output_tokens": response.usage.completion_tokens,
+                    "total_tokens": response.usage.total_tokens,
+                }
             return content or "NO_FINDINGS"
         except Exception as e:
             logger.error("[%s] LLM call failed: %s: %s", self.name, type(e).__name__, str(e)[:200])

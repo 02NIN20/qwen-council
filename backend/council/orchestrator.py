@@ -213,10 +213,35 @@ class CouncilOrchestrator:
 
         # ── Synthesis ────────────────────────────────────────
         logger.info("[%s] Running synthesis", session_id)
+
+        # Collect token usage from all agents
+        agent_token_usage = {}
+        total_input = 0
+        total_output = 0
+        for name, agent in self.agents.items():
+            usage = agent.get_token_usage()
+            if usage:
+                agent_token_usage[name] = usage
+                total_input += usage.get("input_tokens", 0)
+                total_output += usage.get("output_tokens", 0)
+
+        # Estimate cost (qwen3-coder-plus: $0.004/1K input, $0.012/1K output)
+        estimated_cost = (total_input / 1000) * 0.004 + (total_output / 1000) * 0.012
+
+        token_data = {
+            "per_agent": agent_token_usage,
+            "total_input_tokens": total_input,
+            "total_output_tokens": total_output,
+            "total_tokens": total_input + total_output,
+            "estimated_cost_usd": round(estimated_cost, 4),
+            "model": settings.qwen_model,
+        }
+
         report = await synthesize(
             flat_by_round,
             code_context=code[:2000],  # pass truncated code for LLM context
             session_id=session_id,
+            token_usage=token_data,
         )
         round_data["report"] = report.model_dump()
 
@@ -411,10 +436,34 @@ class CouncilOrchestrator:
 
             # ── Synthesis ───────────────────────────────────────────
             logger.info("[%s] Running synthesis (stream)", session_id)
+
+            # Collect token usage from all agents
+            agent_token_usage = {}
+            total_input = 0
+            total_output = 0
+            for name, agent in self.agents.items():
+                usage = agent.get_token_usage()
+                if usage:
+                    agent_token_usage[name] = usage
+                    total_input += usage.get("input_tokens", 0)
+                    total_output += usage.get("output_tokens", 0)
+
+            estimated_cost = (total_input / 1000) * 0.004 + (total_output / 1000) * 0.012
+
+            token_data = {
+                "per_agent": agent_token_usage,
+                "total_input_tokens": total_input,
+                "total_output_tokens": total_output,
+                "total_tokens": total_input + total_output,
+                "estimated_cost_usd": round(estimated_cost, 4),
+                "model": settings.qwen_model,
+            }
+
             report = await synthesize(
                 flat_by_round,
                 code_context=code[:2000],
                 session_id=session_id,
+                token_usage=token_data,
             )
             yield ("synthesis_complete", {
                 "consolidated_findings": len(report.findings),

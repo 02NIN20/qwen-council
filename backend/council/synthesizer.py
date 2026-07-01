@@ -28,6 +28,7 @@ async def synthesize(
     all_findings: dict[int, list[Finding]],
     code_context: str = "",
     session_id: str | None = None,
+    token_usage: dict[str, Any] | None = None,
 ) -> Report:
     """Synthesize findings from all rounds into a final Report.
 
@@ -102,6 +103,7 @@ async def synthesize(
         detailed_review=narrative.get("detailed_review", ""),
         remediation_roadmap=narrative.get("remediation_roadmap", ""),
         agent_metrics=agent_metrics,
+        token_usage=token_usage or {},
         rounds=len(all_findings),
         session_id=session_id,
     )
