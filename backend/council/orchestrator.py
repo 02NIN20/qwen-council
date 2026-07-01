@@ -532,19 +532,29 @@ class CouncilOrchestrator:
         context: list[dict],
         image_url: str | None = None,
         max_retries: int = 2,
+        timeout_seconds: int = 120,
     ) -> list[Finding]:
-        """Call agent.analyze() with retry logic and exponential backoff."""
+        """Call agent.analyze() with retry logic, exponential backoff, and timeout."""
         last_error = None
         for attempt in range(max_retries + 1):
             try:
                 if agent_name == "vision" and image_url:
-                    return await agent.analyze(
+                    coro = agent.analyze(
                         code=code, context=context, round=round_num, image_url=image_url
                     )
                 else:
-                    return await agent.analyze(
+                    coro = agent.analyze(
                         code=code, context=context, round=round_num
                     )
+                return await asyncio.wait_for(coro, timeout=timeout_seconds)
+            except asyncio.TimeoutError:
+                last_error = TimeoutError(f"Agent '{agent_name}' timed out after {timeout_seconds}s")
+                logger.warning(
+                    "[Round %d] Agent '%s' timed out after %ds (attempt %d/%d)",
+                    round_num, agent_name, timeout_seconds, attempt + 1, max_retries + 1,
+                )
+                if attempt < max_retries:
+                    await asyncio.sleep(2)
             except Exception as e:
                 last_error = e
                 if attempt < max_retries:
