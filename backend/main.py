@@ -17,8 +17,9 @@ import uuid
 from contextlib import asynccontextmanager
 from datetime import datetime, timezone
 
-from fastapi import Depends, FastAPI, HTTPException, APIRouter
+from fastapi import Depends, FastAPI, HTTPException, APIRouter, Request
 from fastapi.middleware.cors import CORSMiddleware
+from starlette.middleware.base import BaseHTTPMiddleware
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from starlette.responses import StreamingResponse
@@ -125,6 +126,42 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+# ──────────────────────────────────────────────
+#  Structured JSON Logging Middleware
+# ──────────────────────────────────────────────
+
+class RequestIDMiddleware(BaseHTTPMiddleware):
+    """Add a unique request-id to every request and log in JSON format."""
+
+    async def dispatch(self, request: Request, call_next):
+        import time
+        request_id = str(uuid.uuid4())[:8]
+        request.state.request_id = request_id
+
+        start = time.time()
+        response = await call_next(request)
+        duration = time.time() - start
+
+        # Structured JSON log
+        log_entry = {
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "level": "INFO",
+            "request_id": request_id,
+            "method": request.method,
+            "path": request.url.path,
+            "status_code": response.status_code,
+            "duration_ms": round(duration * 1000, 1),
+            "client": request.client.host if request.client else "unknown",
+        }
+        print(json.dumps(log_entry), flush=True)
+
+        response.headers["X-Request-ID"] = request_id
+        return response
+
+
+app.add_middleware(RequestIDMiddleware)
 
 orchestrator = CouncilOrchestrator()
 
