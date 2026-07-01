@@ -210,7 +210,6 @@ export default function LiveCouncilStatus({
           complete: true,
           totalFindings,
         }));
-        const agent = AGENTS.find((a) => a.id === 'security'); // just for naming
         setStatusText(`Round ${_round} complete — ${totalFindings} findings`);
       },
 

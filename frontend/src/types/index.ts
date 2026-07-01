@@ -62,8 +62,7 @@ export interface FileContent {
 }
 
 export type AgentId = 'critic' | 'analyst' | 'architect' | 'engineer' | 'researcher' | 'coordinator'
-  | 'security' | 'quality' | 'performance' | 'ux' | 'vision'
-  | 'scientist' | 'technologist' | 'philosopher' | 'historian' | 'artist' | 'psychologist' | 'strategist' | 'generalist';
+  | 'security' | 'architecture' | 'quality' | 'performance' | 'ux' | 'vision';
 
 export type AgentStatus = 'waiting' | 'analyzing' | 'complete' | 'error';
 
