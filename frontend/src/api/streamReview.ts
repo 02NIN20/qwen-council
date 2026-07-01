@@ -5,6 +5,7 @@ import type { Report } from '../types';
 export interface StreamReviewRequest {
   code?: string;
   files?: { filename: string; content: string; language?: string }[];
+  images?: { filename: string; content: string; mime_type: string }[];
   instruction?: string;
 }
 

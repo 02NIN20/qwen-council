@@ -119,6 +119,30 @@ class FileContent(BaseModel):
         return self
 
 
+class ImageFile(BaseModel):
+    """An image file submitted for visual analysis."""
+
+    filename: str = Field(
+        ...,
+        min_length=1,
+        max_length=255,
+        description="Image filename (e.g. screenshot.png)",
+        examples=["screenshot.png", "architecture.jpg"],
+    )
+    content: str = Field(
+        ...,
+        min_length=1,
+        max_length=500000,
+        description="Base64-encoded image content",
+    )
+    mime_type: str = Field(
+        "image/png",
+        max_length=50,
+        description="MIME type of the image",
+        examples=["image/png", "image/jpeg", "image/webp"],
+    )
+
+
 class ReviewRequest(BaseModel):
     """POST /api/review payload."""
 
@@ -133,15 +157,15 @@ class ReviewRequest(BaseModel):
         max_length=20,
         description="Multiple source files (up to 20)",
     )
+    images: list[ImageFile] = Field(
+        default_factory=list,
+        max_length=5,
+        description="Optional image files for visual analysis (screenshots, diagrams)",
+    )
     session_id: str | None = Field(
         None,
         max_length=64,
         description="Existing session identifier for follow-up review",
-    )
-    image_url: str | None = Field(
-        None,
-        max_length=50000,
-        description="Optional URL or base64 data URI of a screenshot/diagram for visual analysis",
     )
     instruction: str | None = Field(
         None,

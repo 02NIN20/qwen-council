@@ -191,7 +191,7 @@ async def review_code(payload: ReviewRequest):
         report, session_id, round_data = await orchestrator.run_council(
             code=payload.code or "",
             session_id=payload.session_id,
-            image_url=payload.image_url,
+            image_files=payload.images or None,
             files=payload.files or None,
             instruction=payload.instruction,
             mode=payload.mode,
@@ -223,7 +223,7 @@ async def review_code_stream(payload: ReviewRequest):
             async for event_type, data in orchestrator.stream_council(
                 code=payload.code or "",
                 session_id=payload.session_id,
-                image_url=payload.image_url,
+                image_files=payload.images or None,
                 files=payload.files or None,
                 instruction=payload.instruction,
             ):

@@ -1,6 +1,6 @@
 # Qwen Council — Multi-Agent Collaboration System
 
-**Track 3: Agent Society** — [Global AI Hackathon Series with Qwen Cloud](https://qwencloud-hackathon.dev.devpost.com/)
+**Track 3: Agent Society** — [Global AI Hackathon Series with Qwen Cloud](https://qwencloud-hackathon.devpost.com/)
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
@@ -62,26 +62,26 @@ Qwen Council is a **multi-agent collaboration system** with two modes:
 ```
                     REACT FRONTEND (ChatGPT-style UI)
   Sidebar (sessions) | Chat messages | File upload | Follow-up Q&A
-                            |
-                     HTTP (REST API)
-                            |
-                    FASTAPI BACKEND
-  POST /api/review  |  POST /api/chat  |  GET /api/sessions
-                            |
-          ------------------+------------------
-          |                                  |
-   COUNCIL ORCHESTRATOR                MEMORY SYSTEM
-   Round 1: Individual Analysis       Working (in-memory)
-   Round 2: Cross-Debate              Episodic (PostgreSQL)
-   Round 3: Final Refinement          Semantic (pgvector)
-   Round 4: Negotiation
-          |
-   LLM SYNTHESIZER (qwen3-coder-plus)
-   Executive Summary + Risk Overview +
-   Detailed Review + Remediation Roadmap
-          |
-                    QWEN CLOUD API
-  https://dashscope-intl.aliyuncs.com/compatible-mode/v1
+                             |
+                      HTTP (REST API)
+                             |
+                     FASTAPI BACKEND
+   POST /api/v1/review  |  POST /api/v1/chat  |  GET /api/v1/sessions
+                             |
+           ------------------+------------------
+           |                                  |
+    COUNCIL ORCHESTRATOR                MEMORY SYSTEM
+    Round 1: Individual Analysis       Working (in-memory)
+    Round 2: Cross-Debate              Episodic (PostgreSQL)
+    Round 3: Final Refinement          Semantic (pgvector)
+    Round 4: Negotiation
+           |
+    LLM SYNTHESIZER (qwen3-coder-plus)
+    Executive Summary + Risk Overview +
+    Detailed Review + Remediation Roadmap
+           |
+                     QWEN CLOUD API
+  https://dashscope.aliyuncs.com/compatible-mode/v1
   Models: qwen3-coder-plus, qwen-vl-plus, text-embedding-v3
 ```
 
@@ -195,17 +195,183 @@ The frontend will be available on `http://localhost:5173` and the API on `http:/
 
 ## API Endpoints
 
+All endpoints are available under both `/api/v1/` (versioned) and `/api/` (legacy) prefixes.
+
 | Method | Endpoint | Description |
 |:-------|:---------|:------------|
-| `POST` | `/api/review` | Submit code for council review (supports multiple files + instructions) |
-| `POST` | `/api/review/stream` | Stream review progress via Server-Sent Events |
-| `POST` | `/api/chat` | General multi-agent chat (any question, routed to relevant agents) |
-| `POST` | `/api/chat/stream` | Stream chat responses via Server-Sent Events |
-| `GET` | `/api/sessions` | List past sessions (review + chat) |
-| `GET` | `/api/sessions/{id}` | Get session details and findings |
-| `DELETE` | `/api/sessions/{id}` | Delete a session |
-| `GET` | `/api/memory/patterns` | Get consolidated semantic memory patterns |
-| `GET` | `/api/health` | Health check |
+| `POST` | `/api/v1/review` | Submit code for council review (supports multiple files + images + instructions) |
+| `POST` | `/api/v1/review/stream` | Stream review progress via Server-Sent Events |
+| `POST` | `/api/v1/chat` | General multi-agent chat (any question, routed to relevant agents) |
+| `POST` | `/api/v1/chat/stream` | Stream chat responses via Server-Sent Events |
+| `GET` | `/api/v1/sessions` | List past sessions (review + chat) |
+| `GET` | `/api/v1/sessions/{id}` | Get session details and findings |
+| `DELETE` | `/api/v1/sessions/{id}` | Delete a session |
+| `GET` | `/api/v1/memory/patterns` | Get consolidated semantic memory patterns |
+| `GET` | `/api/v1/health` | Health check |
+
+### Review Modes
+
+| Mode | Agents | Rounds | Token Usage | Use Case |
+|:-----|:-------|:-------|:------------|:---------|
+| `full` (default) | 6 agents | 4 rounds (incl. negotiation) | ~100% | Thorough review |
+| `light` | 3 agents (security, architecture, quality) | 2 rounds | ~40% | Quick scan, budget-conscious |
+
+### POST /api/v1/review
+
+```json
+{
+  "files": [
+    { "filename": "main.py", "content": "def hello():\n    return 1", "language": "python" }
+  ],
+  "instruction": "Focus on security vulnerabilities",
+  "mode": "full"
+}
+```
+
+### Response
+
+```json
+{
+  "session_id": "ses-abc123def456",
+  "report": {
+    "summary": "The code review identified critical security issues...",
+    "findings": [
+      {
+        "title": "SQL injection vulnerability",
+        "impact": "Critical",
+        "votes": { "security": "Critical", "architecture": "High" },
+        "consensus_level": "High",
+        "consensus_score": 1.0
+      }
+    ],
+    "token_usage": {
+      "per_agent": { "security": { "input_tokens": 1200, "output_tokens": 800, "total_tokens": 2000 } },
+      "total_input_tokens": 7200,
+      "total_output_tokens": 4800,
+      "total_tokens": 12000,
+      "estimated_cost_usd": 0.0864,
+      "model": "qwen3-coder-plus"
+    }
+  }
+}
+```
+
+### POST /api/v1/chat
+
+```json
+{
+  "message": "What is SOLID?",
+  "session_id": "chat-abc123"
+}
+```
+
+---
+
+## CLI Tool
+
+Interact with Qwen Council from the terminal:
+
+```bash
+# Setup (first time)
+python3 cli.py setup --url http://localhost:8000
+
+# Code review
+python3 cli.py review main.py
+python3 cli.py review main.py utils.py --instruction "Focus on security"
+
+# Chat
+python3 cli.py chat "What is the meaning of life?"
+python3 cli.py chat "Why did you flag that SQL injection?" --session chat-abc123
+
+# List sessions
+python3 cli.py sessions
+```
+
+Set `QWEN_COUNCIL_URL` environment variable as an alternative to `setup`.
+
+---
+
+## MCP Server
+
+Expose Qwen Council as tools for any MCP-compatible client (Claude Desktop, Cursor, etc.):
+
+```bash
+# Install MCP SDK
+pip install mcp httpx
+
+# Run in stdio mode (for Claude Desktop, Cursor)
+QWEN_COUNCIL_API_URL=http://localhost:8000 python3 -m backend.mcp_server
+```
+
+### Available Tools
+
+| Tool | Description |
+|:-----|:------------|
+| `review_code(code, instruction)` | Submit code for multi-agent council review |
+| `chat(message, session_id)` | Ask the expert panel a question |
+| `list_sessions(limit)` | List past review/chat sessions |
+| `get_session(session_id)` | Get details of a specific session |
+
+### Claude Desktop Config
+
+```json
+{
+  "mcpServers": {
+    "qwen-council": {
+      "command": "python",
+      "args": ["-m", "backend.mcp_server"],
+      "cwd": "/path/to/qwen-council",
+      "env": { "QWEN_COUNCIL_API_URL": "http://localhost:8000" }
+    }
+  }
+}
+```
+
+---
+
+## API Documentation
+
+Interactive Swagger UI: `http://localhost:8000/docs`
+ReDoc: `http://localhost:8000/redoc`
+OpenAPI spec: `http://localhost:8000/openapi.json`
+
+---
+
+## LLM Provider Abstraction
+
+Qwen Council uses an abstraction layer (`backend/llm/provider.py`) so you can swap the underlying LLM provider without changing agent code:
+
+```python
+from backend.llm.provider import LLMProvider, LLMResponse, get_provider, set_provider
+
+# Use default Qwen provider
+provider = get_provider()
+response = await provider.complete(
+    model="qwen3-coder-plus",
+    messages=[{"role": "user", "content": "Hello"}],
+    max_tokens=256,
+)
+
+# Swap to a custom provider (for testing or different LLM)
+class MyProvider(LLMProvider):
+    async def complete(self, model, messages, **kwargs):
+        return LLMResponse(content="Custom response", model=model)
+
+set_provider(MyProvider())
+```
+
+---
+
+## Robustness Features
+
+| Feature | Description |
+|:--------|:------------|
+| **Rate limit handling** | 3 retries with exponential backoff (1s → 2s → 4s) on 429 errors |
+| **Per-agent timeouts** | 120s timeout per agent — a hung agent doesn't block the review |
+| **Light mode** | `mode: "light"` uses 3 agents + 2 rounds (~60% fewer tokens) |
+| **Token tracking** | Per-agent breakdown + estimated cost in every response |
+| **Structured logging** | JSON logs with `X-Request-ID` header for production debugging |
+| **API versioning** | `/api/v1/` routes with `/api/` backward compatibility |
 
 ---
 
@@ -219,6 +385,14 @@ cp .env.example .env
 nano .env   # Set qwen_api_key
 sudo bash deploy.sh
 ```
+
+### Persistence after reboot
+
+```bash
+sudo systemctl enable docker
+```
+
+With `restart: unless-stopped` in docker-compose.yml, all containers auto-start after ECS reboot.
 
 ---
 

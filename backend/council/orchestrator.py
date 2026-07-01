@@ -78,7 +78,7 @@ class CouncilOrchestrator:
         self,
         code: str,
         session_id: str | None = None,
-        image_url: str | None = None,
+        image_files: list[Any] | None = None,
         files: list[FileContent] | None = None,
         instruction: str | None = None,
         mode: str = "full",
@@ -91,8 +91,8 @@ class CouncilOrchestrator:
             Source code to review.
         session_id : str | None
             Existing session ID for memory continuity.
-        image_url : str | None
-            Optional image URL for visual analysis (vision agent).
+        image_files : list[ImageFile] | None
+            Optional image files for visual analysis (screenshots, diagrams).
         files : list[FileContent] | None
             Optional list of source files for multi-file review.
         instruction : str | None
@@ -152,6 +152,14 @@ class CouncilOrchestrator:
 
         # Retrieve relevant semantic memory patterns
         semantic_patterns = await self._retrieve_semantic_context(code)
+
+        # Convert image files to data URIs for the vision agent
+        image_url = None
+        if image_files:
+            # Use the first image for now (vision agent handles one at a time)
+            img = image_files[0]
+            image_url = f"data:{img.mime_type};base64,{img.content}"
+            round_data["images"] = [{"filename": img.filename, "mime_type": img.mime_type}]
 
         all_findings: dict[int, list[Finding]] = {}
 
@@ -308,7 +316,7 @@ class CouncilOrchestrator:
         self,
         code: str,
         session_id: str | None = None,
-        image_url: str | None = None,
+        image_files: list[Any] | None = None,
         files: list[FileContent] | None = None,
         instruction: str | None = None,
     ) -> AsyncGenerator[tuple[str, dict[str, Any]], None]:
@@ -340,6 +348,12 @@ class CouncilOrchestrator:
             else:
                 file_context = self._build_multi_file_context(files)
                 code = file_context + "\n\n### Additional code:\n\n" + code
+
+        # Convert image files to data URIs for the vision agent
+        image_url = None
+        if image_files:
+            img = image_files[0]
+            image_url = f"data:{img.mime_type};base64,{img.content}"
 
         # Prepend instruction if provided
         if instruction:

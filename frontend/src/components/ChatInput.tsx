@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect, useCallback, type DragEvent, type ChangeEvent } from 'react';
 
 interface ChatInputProps {
-  onSubmit: (code: string, files: { filename: string; content: string }[], imageUrl?: string, instruction?: string) => void;
+  onSubmit: (code: string, files: { filename: string; content: string }[], images?: { filename: string; content: string; mime_type: string }[], instruction?: string) => void;
   onChatSubmit: (message: string) => void;
   disabled: boolean;
   /** Show simplified follow-up mode (no file attach, chat-only) */
@@ -18,12 +18,22 @@ const ACCEPTED_EXTENSIONS = [
 ];
 
 const ACCEPT_STRING = ACCEPTED_EXTENSIONS.join(',');
+const IMAGE_EXTENSIONS = ['.png', '.jpg', '.jpeg', '.gif', '.webp', '.bmp', '.svg'];
+const IMAGE_ACCEPT_STRING = IMAGE_EXTENSIONS.join(',');
 const MAX_FILE_SIZE = 50 * 1024; // 50 KB
+const MAX_IMAGE_SIZE = 500 * 1024; // 500 KB
 
 interface SelectedFile {
   name: string;
   size: number;
   content: string;
+}
+
+interface SelectedImage {
+  name: string;
+  size: number;
+  content: string; // base64
+  mime_type: string;
 }
 
 function formatFileSize(bytes: number): string {
@@ -33,24 +43,23 @@ function formatFileSize(bytes: number): string {
 }
 
 const FILE_ICONS: Record<string, string> = {
-  py: '🐍', js: '🟨', ts: '🔵', jsx: '⚛️', tsx: '⚛️',
-  html: '🌐', css: '🎨', json: '📋', md: '📝', sql: '🗄️',
-  java: '☕', cpp: '⚙️', c: '⚙️', go: '🔷', rs: '🦀',
-  rb: '💎', php: '🐘', swift: '🐦', kt: '📱', yaml: '📄',
-  yml: '📄', toml: '📄', sh: '💻', dockerfile: '🐳',
+  py: 'PY', js: 'JS', ts: 'TS', jsx: 'JSX', tsx: 'TSX',
+  html: 'HTML', css: 'CSS', json: 'JSON', md: 'MD', sql: 'SQL',
+  java: 'JAVA', cpp: 'CPP', c: 'C', go: 'GO', rs: 'RS',
+  rb: 'RB', php: 'PHP', swift: 'SWIFT', kt: 'KT', yaml: 'YAML',
+  yml: 'YML', toml: 'TOML', sh: 'SH', dockerfile: 'DOCKER',
 };
 
 function fileIcon(filename: string): string {
   const ext = filename.split('.').pop()?.toLowerCase() || '';
-  return FILE_ICONS[ext] || '📄';
+  return FILE_ICONS[ext] || 'FILE';
 }
 
 export default function ChatInput({ onSubmit, onChatSubmit, disabled, followUpMode, onFollowUpSubmit }: ChatInputProps) {
   const [files, setFiles] = useState<SelectedFile[]>([]);
+  const [images, setImages] = useState<SelectedImage[]>([]);
   const [chatText, setChatText] = useState('');
   const [isDragOver, setIsDragOver] = useState(false);
-  const [showImageInput, setShowImageInput] = useState(false);
-  const [imageUrl, setImageUrl] = useState('');
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const imageInputRef = useRef<HTMLInputElement>(null);
@@ -59,8 +68,7 @@ export default function ChatInput({ onSubmit, onChatSubmit, disabled, followUpMo
   useEffect(() => {
     if (followUpMode) {
       setFiles([]);
-      setImageUrl('');
-      setShowImageInput(false);
+      setImages([]);
     }
   }, [followUpMode]);
 
@@ -78,12 +86,18 @@ export default function ChatInput({ onSubmit, onChatSubmit, disabled, followUpMo
     if (fileInputRef.current) fileInputRef.current.value = '';
   }, [files]);
 
+  useEffect(() => {
+    if (imageInputRef.current) imageInputRef.current.value = '';
+  }, [images]);
+
   // ── File handling ─────────────────────────────────────────────
 
   const readFiles = useCallback((fileList: FileList) => {
     const pending: SelectedFile[] = [];
     let hasOversized = false;
     for (const f of Array.from(fileList)) {
+      const ext = '.' + f.name.split('.').pop()?.toLowerCase();
+      if (IMAGE_EXTENSIONS.includes(ext)) continue; // skip images, handle separately
       if (f.size > MAX_FILE_SIZE) { hasOversized = true; continue; }
       pending.push({ name: f.name, size: f.size, content: '' });
     }
@@ -108,14 +122,63 @@ export default function ChatInput({ onSubmit, onChatSubmit, disabled, followUpMo
     }
   }, []);
 
+  const readImages = useCallback((fileList: FileList) => {
+    const pending: SelectedImage[] = [];
+    let hasOversized = false;
+    for (const f of Array.from(fileList)) {
+      const ext = '.' + f.name.split('.').pop()?.toLowerCase();
+      if (!IMAGE_EXTENSIONS.includes(ext)) continue;
+      if (f.size > MAX_IMAGE_SIZE) { hasOversized = true; continue; }
+      pending.push({
+        name: f.name,
+        size: f.size,
+        content: '',
+        mime_type: f.type || 'image/png',
+      });
+    }
+    if (hasOversized) {
+      alert(`Some images were skipped (max ${formatFileSize(MAX_IMAGE_SIZE)} each).`);
+    }
+    if (pending.length === 0) return;
+
+    let loaded = 0;
+    const results: SelectedImage[] = [];
+    for (const pf of pending) {
+      const found = Array.from(fileList).find((f) => f.name === pf.name);
+      if (!found) continue;
+      const reader = new FileReader();
+      reader.onload = () => {
+        // Extract base64 from data URL
+        const dataUrl = reader.result as string;
+        const base64 = dataUrl.split(',')[1] || dataUrl;
+        results.push({ name: pf.name, size: pf.size, content: base64, mime_type: pf.mime_type });
+        loaded++;
+        if (loaded === pending.length) setImages((prev) => [...prev, ...results]);
+      };
+      reader.onerror = () => { loaded++; };
+      reader.readAsDataURL(found);
+    }
+  }, []);
+
   const handleFileSelect = useCallback((e: ChangeEvent<HTMLInputElement>) => {
     const fl = e.target.files;
     if (!fl || fl.length === 0) return;
     readFiles(fl);
-  }, [readFiles]);
+    readImages(fl);
+  }, [readFiles, readImages]);
+
+  const handleImageSelect = useCallback((e: ChangeEvent<HTMLInputElement>) => {
+    const fl = e.target.files;
+    if (!fl || fl.length === 0) return;
+    readImages(fl);
+  }, [readImages]);
 
   const handleRemoveFile = useCallback((idx: number) => {
     setFiles((prev) => prev.filter((_, i) => i !== idx));
+  }, []);
+
+  const handleRemoveImage = useCallback((idx: number) => {
+    setImages((prev) => prev.filter((_, i) => i !== idx));
   }, []);
 
   // ── Drag & drop ──────────────────────────────────────────────
@@ -139,7 +202,8 @@ export default function ChatInput({ onSubmit, onChatSubmit, disabled, followUpMo
     const fl = e.dataTransfer.files;
     if (!fl || fl.length === 0) return;
     readFiles(fl);
-  }, [readFiles]);
+    readImages(fl);
+  }, [readFiles, readImages]);
 
   // ── Submit logic ──────────────────────────────────────────────
 
@@ -153,18 +217,22 @@ export default function ChatInput({ onSubmit, onChatSubmit, disabled, followUpMo
       return;
     }
 
-    // If files are attached → code review mode
-    if (files.length > 0) {
-      const payload = files.map((f) => ({
+    // If files or images are attached → code review mode
+    if (files.length > 0 || images.length > 0) {
+      const filePayload = files.map((f) => ({
         filename: f.name,
         content: f.content,
       }));
+      const imagePayload = images.length > 0 ? images.map((img) => ({
+        filename: img.name,
+        content: img.content,
+        mime_type: img.mime_type,
+      })) : undefined;
       const instruction = chatText.trim() || undefined;
-      onSubmit('', payload, imageUrl.trim() || undefined, instruction);
+      onSubmit('', filePayload, imagePayload, instruction);
       setFiles([]);
+      setImages([]);
       setChatText('');
-      setImageUrl('');
-      setShowImageInput(false);
       return;
     }
 
@@ -173,7 +241,7 @@ export default function ChatInput({ onSubmit, onChatSubmit, disabled, followUpMo
       onChatSubmit(chatText.trim());
       setChatText('');
     }
-  }, [files, chatText, imageUrl, disabled, onSubmit, onChatSubmit, followUpMode, onFollowUpSubmit]);
+  }, [files, images, chatText, disabled, onSubmit, onChatSubmit, followUpMode, onFollowUpSubmit]);
 
   const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
     if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
@@ -187,7 +255,7 @@ export default function ChatInput({ onSubmit, onChatSubmit, disabled, followUpMo
     }
   }, [handleSend]);
 
-  const canSend = (files.length > 0 || chatText.trim().length > 0) && !disabled;
+  const canSend = (files.length > 0 || images.length > 0 || chatText.trim().length > 0) && !disabled;
 
   // ── Render ──────────────────────────────────────────────────
 
@@ -206,47 +274,33 @@ export default function ChatInput({ onSubmit, onChatSubmit, disabled, followUpMo
               <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5" />
             </svg>
             <p className="text-retro-cyan font-bold text-sm tracking-wider uppercase">Drop files here</p>
-            <p className="text-gray-500 text-xs mt-1">.py .js .ts .html .css .json ...</p>
+            <p className="text-gray-500 text-xs mt-1">.py .js .ts .html .css .json .png .jpg ...</p>
           </div>
         </div>
       )}
 
-      {/* ── Hidden file input (main mode only) ── */}
+      {/* ── Hidden file inputs (main mode only) ── */}
       {!followUpMode && (
-        <input
-          ref={fileInputRef}
-          type="file"
-          accept={ACCEPT_STRING}
-          multiple
-          className="hidden"
-          onChange={handleFileSelect}
-          aria-hidden="true"
-        />
-      )}
-
-      {/* ── Image URL input (main mode only) ── */}
-      {!followUpMode && showImageInput && (
-        <div className="px-4 pt-3 pb-1 animate-fade-in">
-          <div className="flex items-center gap-2">
-            <span className="text-xs text-retro-cyan font-mono">🖼️</span>
-            <input
-              type="url"
-              value={imageUrl}
-              onChange={(e) => setImageUrl(e.target.value)}
-              placeholder="Paste image URL for additional context..."
-              className="flex-1 bg-[#0d1117] border border-retro-border px-3 py-1.5 text-xs text-gray-300 placeholder:text-gray-600 outline-none focus:border-retro-cyan transition-colors font-mono"
-              disabled={disabled}
-            />
-            {imageUrl && (
-              <button onClick={() => setImageUrl('')} className="text-gray-500 hover:text-retro-cyan text-xs" aria-label="Clear image">✕</button>
-            )}
-          </div>
-          {imageUrl && (
-            <div className="mt-1 max-h-20 overflow-hidden border border-retro-border">
-              <img src={imageUrl} alt="Preview" className="w-full h-auto object-contain max-h-20" onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
-            </div>
-          )}
-        </div>
+        <>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept={ACCEPT_STRING}
+            multiple
+            className="hidden"
+            onChange={handleFileSelect}
+            aria-hidden="true"
+          />
+          <input
+            ref={imageInputRef}
+            type="file"
+            accept={IMAGE_ACCEPT_STRING}
+            multiple
+            className="hidden"
+            onChange={handleImageSelect}
+            aria-hidden="true"
+          />
+        </>
       )}
 
       {/* ── Main input bar ── */}
@@ -269,11 +323,11 @@ export default function ChatInput({ onSubmit, onChatSubmit, disabled, followUpMo
         {/* Attach image button (main mode only) */}
         {!followUpMode && (
           <button
-            onClick={() => setShowImageInput(!showImageInput)}
+            onClick={() => imageInputRef.current?.click()}
             disabled={disabled}
-            className={`p-2 transition-colors flex-shrink-0 ${showImageInput ? 'text-retro-cyan' : 'text-gray-500 hover:text-retro-cyan'} disabled:opacity-30`}
-            aria-label="Attach image URL"
-            title="Attach image URL"
+            className="p-2 text-gray-500 hover:text-retro-cyan transition-colors disabled:opacity-30 flex-shrink-0"
+            aria-label="Attach images"
+            title="Attach images"
           >
             <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5l1.409-1.409a2.25 2.25 0 013.182 0l2.909 2.909M3.75 21h16.5A2.25 2.25 0 0022.5 18.75V5.25A2.25 2.25 0 0020.25 3H3.75A2.25 2.25 0 001.5 5.25v13.5A2.25 2.25 0 003.75 21z" />
@@ -288,17 +342,38 @@ export default function ChatInput({ onSubmit, onChatSubmit, disabled, followUpMo
             <div className="flex flex-wrap gap-1.5 mb-1.5">
               {files.map((f, idx) => (
                 <span
-                  key={`${f.name}-${idx}`}
+                  key={`file-${f.name}-${idx}`}
                   className="inline-flex items-center gap-1 px-2 py-0.5 bg-[#161b22] border border-retro-border rounded text-xs text-gray-300 font-mono"
                 >
-                  <span className="text-[11px]">{fileIcon(f.name)}</span>
+                  <span className="text-[10px] font-bold text-retro-cyan">{fileIcon(f.name)}</span>
                   <span className="max-w-[120px] truncate">{f.name}</span>
                   <span className="text-[10px] text-gray-500">({formatFileSize(f.size)})</span>
                   <button
                     onClick={() => handleRemoveFile(idx)}
                     className="ml-0.5 text-gray-500 hover:text-retro-red transition-colors"
                     aria-label={`Remove ${f.name}`}
-                  >✕</button>
+                  >x</button>
+                </span>
+              ))}
+            </div>
+          )}
+
+          {/* Image chips (main mode only) */}
+          {!followUpMode && images.length > 0 && (
+            <div className="flex flex-wrap gap-1.5 mb-1.5">
+              {images.map((img, idx) => (
+                <span
+                  key={`img-${img.name}-${idx}`}
+                  className="inline-flex items-center gap-1 px-2 py-0.5 bg-[#161b22] border border-retro-border rounded text-xs text-gray-300 font-mono"
+                >
+                  <span className="text-[10px] font-bold text-retro-green">IMG</span>
+                  <span className="max-w-[120px] truncate">{img.name}</span>
+                  <span className="text-[10px] text-gray-500">({formatFileSize(img.size)})</span>
+                  <button
+                    onClick={() => handleRemoveImage(idx)}
+                    className="ml-0.5 text-gray-500 hover:text-retro-red transition-colors"
+                    aria-label={`Remove ${img.name}`}
+                  >x</button>
                 </span>
               ))}
             </div>
@@ -313,7 +388,7 @@ export default function ChatInput({ onSubmit, onChatSubmit, disabled, followUpMo
             placeholder={
               followUpMode
                 ? "Ask a follow-up question about this review..."
-                : files.length > 0
+                : files.length > 0 || images.length > 0
                   ? "Add instructions for the review... (or press Enter to send)"
                   : "Ask the expert panel a question, paste code, or attach files..."
             }
@@ -349,19 +424,19 @@ export default function ChatInput({ onSubmit, onChatSubmit, disabled, followUpMo
       </div>
 
       {/* ── Footer hint ── */}
-      {!disabled && !followUpMode && files.length === 0 && !chatText.trim() && (
+      {!disabled && !followUpMode && files.length === 0 && images.length === 0 && !chatText.trim() && (
         <div className="pb-2 px-4">
           <p className="text-[10px] text-gray-700 text-center flex items-center justify-center gap-3">
-            <span>Enter to send · Shift+Enter for new line</span>
-            <span className="text-gray-800">·</span>
-            <span>Drag & drop files to attach</span>
+            <span>Enter to send . Shift+Enter for new line</span>
+            <span className="text-gray-800">.</span>
+            <span>Drag and drop files to attach</span>
           </p>
         </div>
       )}
-      {!disabled && !followUpMode && files.length > 0 && (
+      {!disabled && !followUpMode && (files.length > 0 || images.length > 0) && (
         <div className="pb-2 px-4">
           <p className="text-[10px] text-gray-700 text-center">
-            Files attached · Press Enter to start code review
+            Files attached . Press Enter to start code review
           </p>
         </div>
       )}

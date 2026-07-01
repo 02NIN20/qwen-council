@@ -9,7 +9,7 @@ import ChatInput from './ChatInput';
 
 interface ChatViewProps {
   messages: ChatMessageData[];
-  onSubmit: (code: string, files?: { filename: string; content: string }[], imageUrl?: string, instruction?: string) => void;
+  onSubmit: (code: string, files?: { filename: string; content: string }[], images?: { filename: string; content: string; mime_type: string }[], instruction?: string) => void;
   onChatSubmit: (message: string) => void;
   disabled: boolean;
   sessionId?: string;

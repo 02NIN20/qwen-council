@@ -154,7 +154,7 @@ export default function App() {
    * Handle code submission — starts the SSE stream.
    */
   const handleSubmit = useCallback(
-    (code: string, files?: { filename: string; content: string }[], _imageUrl?: string, instruction?: string) => {
+    (code: string, files?: { filename: string; content: string }[], images?: { filename: string; content: string; mime_type: string }[], instruction?: string) => {
       // Build the payload
       const payload: StreamReviewRequest = {
         code: code || undefined,
@@ -163,6 +163,7 @@ export default function App() {
           content: f.content,
           language: f.filename.split('.').pop(),
         })),
+        images: images,
         instruction: instruction || undefined,
       };
       streamPayloadRef.current = payload;
