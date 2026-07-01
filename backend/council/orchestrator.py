@@ -81,8 +81,9 @@ class CouncilOrchestrator:
         image_url: str | None = None,
         files: list[FileContent] | None = None,
         instruction: str | None = None,
+        mode: str = "full",
     ) -> tuple[Report, str, dict[str, Any]]:
-        """Execute the full 3-round council debate.
+        """Execute the full council debate.
 
         Parameters
         ----------
@@ -94,6 +95,10 @@ class CouncilOrchestrator:
             Optional image URL for visual analysis (vision agent).
         files : list[FileContent] | None
             Optional list of source files for multi-file review.
+        instruction : str | None
+            Optional review instruction.
+        mode : str
+            "full" (6 agents, 4 rounds) or "light" (3 agents, 2 rounds).
 
         Returns
         -------
@@ -102,6 +107,16 @@ class CouncilOrchestrator:
         """
         if not session_id:
             session_id = f"ses-{uuid.uuid4().hex[:12]}"
+
+        # Determine agents and rounds based on mode
+        if mode == "light":
+            active_agents = {k: self.agents[k] for k in ("security", "architecture", "quality")}
+            max_rounds = 2
+            logger.info("[%s] Light mode: 3 agents, 2 rounds", session_id)
+        else:
+            active_agents = self.agents
+            max_rounds = 4
+            logger.info("[%s] Full mode: 6 agents, 4 rounds", session_id)
 
         # Initialize round data for frontend tracing
         round_data: dict[str, Any] = {}
@@ -148,6 +163,7 @@ class CouncilOrchestrator:
             context_findings=None,
             semantic_context=semantic_patterns,
             image_url=image_url,
+            agents=active_agents,
         )
         all_findings[1] = round1_findings
         round_data["round_1"] = {
@@ -169,6 +185,7 @@ class CouncilOrchestrator:
             context_findings=round1_findings,
             semantic_context=semantic_patterns,
             image_url=image_url,
+            agents=active_agents,
         )
         all_findings[2] = round2_findings
         round_data["round_2"] = {
@@ -182,30 +199,32 @@ class CouncilOrchestrator:
             sum(len(v) for v in round2_findings.values()),
         )
 
-        # ── Round 3: Refinement ──────────────────────────────
-        logger.info("[%s] Starting Round 3: Refinement", session_id)
-        round3_findings = await self._run_round(
-            code=code,
-            round_num=3,
-            context_findings=round2_findings,
-            semantic_context=semantic_patterns,
-            image_url=image_url,
-        )
-        all_findings[3] = round3_findings
-        round_data["round_3"] = {
-            agent: [f.model_dump() for f in findings]
-            for agent, findings in round3_findings.items()
-        }
-        self.working_memory.set(session_id, {"round3_findings": round3_findings})
-        logger.info(
-            "[%s] Round 3 complete: %d total findings",
-            session_id,
-            sum(len(v) for v in round3_findings.values()),
-        )
+        # ── Round 3: Refinement (full mode only) ─────────────
+        if max_rounds >= 3:
+            logger.info("[%s] Starting Round 3: Refinement", session_id)
+            round3_findings = await self._run_round(
+                code=code,
+                round_num=3,
+                context_findings=round2_findings,
+                semantic_context=semantic_patterns,
+                image_url=image_url,
+                agents=active_agents,
+            )
+            all_findings[3] = round3_findings
+            round_data["round_3"] = {
+                agent: [f.model_dump() for f in findings]
+                for agent, findings in round3_findings.items()
+            }
+            self.working_memory.set(session_id, {"round3_findings": round3_findings})
+            logger.info(
+                "[%s] Round 3 complete: %d total findings",
+                session_id,
+                sum(len(v) for v in round3_findings.values()),
+            )
 
         # ── Flatten findings for synthesis ───────────────────
         flat_by_round: dict[int, list[Finding]] = {}
-        for r in (1, 2, 3):
+        for r in range(1, max_rounds + 1):
             flat: list[Finding] = []
             for agent_findings in all_findings.get(r, {}).values():
                 flat.extend(agent_findings)
@@ -214,11 +233,11 @@ class CouncilOrchestrator:
         # ── Synthesis ────────────────────────────────────────
         logger.info("[%s] Running synthesis", session_id)
 
-        # Collect token usage from all agents
+        # Collect token usage from active agents
         agent_token_usage = {}
         total_input = 0
         total_output = 0
-        for name, agent in self.agents.items():
+        for name, agent in active_agents.items():
             usage = agent.get_token_usage()
             if usage:
                 agent_token_usage[name] = usage
@@ -245,22 +264,23 @@ class CouncilOrchestrator:
         )
         round_data["report"] = report.model_dump()
 
-        # ── Round 4: Negotiation (low-consensus findings) ────
-        negotiation_transcript = await self._run_negotiation_round(
-            session_id=session_id,
-            code=code,
-            report_findings=report.findings,
-            all_rounds_findings=all_findings,
-        )
-        if negotiation_transcript:
-            round_data["round_4_negotiation"] = negotiation_transcript
-            logger.info(
-                "[%s] Round 4 negotiation complete: %d disagreements debated",
-                session_id,
-                len(negotiation_transcript),
+        # ── Round 4: Negotiation (full mode only) ────────────
+        if max_rounds >= 4:
+            negotiation_transcript = await self._run_negotiation_round(
+                session_id=session_id,
+                code=code,
+                report_findings=report.findings,
+                all_rounds_findings=all_findings,
             )
-        else:
-            logger.info("[%s] No negotiation needed — all findings have strong consensus", session_id)
+            if negotiation_transcript:
+                round_data["round_4_negotiation"] = negotiation_transcript
+                logger.info(
+                    "[%s] Round 4 negotiation complete: %d disagreements debated",
+                    session_id,
+                    len(negotiation_transcript),
+                )
+            else:
+                logger.info("[%s] No negotiation needed — all findings have strong consensus", session_id)
 
         # Update working memory
         self.working_memory.set(
@@ -367,7 +387,7 @@ class CouncilOrchestrator:
 
                 # Launch all agents in parallel
                 tasks: dict[str, asyncio.Task[list[Finding]]] = {}
-                for name, agent in self.agents.items():
+                for name, agent in active_agents.items():
                     yield ("agent_start", {"agent": name, "round": round_num})
                     ctx = context_per_agent.get(name, [])
                     tasks[name] = asyncio.create_task(
@@ -577,12 +597,15 @@ class CouncilOrchestrator:
         context_findings: dict[str, list[Finding]] | None,
         semantic_context: list[str] | None = None,
         image_url: str | None = None,
+        agents: dict[str, Any] | None = None,
     ) -> dict[str, list[Finding]]:
         """Run one round across all agents in parallel."""
+        active = agents if agents is not None else self.agents
+
         # Build context list for each agent (findings from other agents)
         context_per_agent: dict[str, list[dict[str, Any]]] = {}
         if context_findings:
-            for agent_name in self.agents:
+            for agent_name in active:
                 others_context: list[dict[str, Any]] = []
                 for other_name, other_findings in context_findings.items():
                     if other_name != agent_name:
@@ -591,7 +614,7 @@ class CouncilOrchestrator:
                 context_per_agent[agent_name] = others_context
         else:
             context_per_agent = {
-                name: [] for name in self.agents
+                name: [] for name in active
             }
 
         # Add semantic context if available
@@ -606,7 +629,7 @@ class CouncilOrchestrator:
 
         # Call all agents in parallel with retry
         tasks: dict[str, asyncio.Task[list[Finding]]] = {}
-        for name, agent in self.agents.items():
+        for name, agent in active.items():
             ctx = context_per_agent.get(name, [])
             tasks[name] = asyncio.create_task(
                 self._analyze_with_retry(

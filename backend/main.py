@@ -157,6 +157,7 @@ async def review_code(payload: ReviewRequest):
             image_url=payload.image_url,
             files=payload.files or None,
             instruction=payload.instruction,
+            mode=payload.mode,
         )
 
         return ReviewResponse(

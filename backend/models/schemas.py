@@ -149,6 +149,12 @@ class ReviewRequest(BaseModel):
         description="Optional natural-language instruction for the council",
         examples=["Focus on security vulnerabilities", "Check for performance issues"],
     )
+    mode: str = Field(
+        "full",
+        pattern="^(light|full)$",
+        description="Review mode: 'light' (3 agents, 2 rounds, ~60% fewer tokens) or 'full' (6 agents, 4 rounds)",
+        examples=["light", "full"],
+    )
 
     @model_validator(mode="after")
     def _require_code_or_files(self) -> "ReviewRequest":
