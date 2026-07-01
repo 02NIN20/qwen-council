@@ -79,10 +79,10 @@ async def synthesize(
         if cf is not None:
             consolidated.append(cf)
 
-    # Sort by severity: Crítico -> Alto -> Medio -> Bajo
-    severity_order = {"Crítico": 0, "Alto": 1, "Medio": 2, "Bajo": 3}
+    # Sort by severity: Critical -> High -> Medium -> Low
+    severity_order = {"Critical": 0, "High": 1, "Medium": 2, "Low": 3}
     consolidated.sort(
-        key=lambda x: severity_order.get(x.impacto, 99)
+        key=lambda x: severity_order.get(x.impact, 99)
     )
 
     # Build agent metrics
@@ -126,7 +126,7 @@ async def _generate_narrative(
         client = AsyncOpenAI(
             api_key=settings.qwen_api_key,
             base_url=settings.qwen_base_url,
-            timeout=60,
+            timeout=300,
         )
 
         findings_json = json.dumps(
@@ -188,49 +188,49 @@ def _fallback_narrative(
     consolidated: list[ConsolidatedFinding],
 ) -> dict[str, str]:
     """Generate a template-based narrative when LLM is unavailable."""
-    criticos = sum(1 for f in consolidated if f.impacto == "Crítico")
-    altos = sum(1 for f in consolidated if f.impacto == "Alto")
-    medios = sum(1 for f in consolidated if f.impacto == "Medio")
-    bajos = sum(1 for f in consolidated if f.impacto == "Bajo")
-    alto_consenso = sum(1 for f in consolidated if f.consensus_level == "Alto")
+    critical = sum(1 for f in consolidated if f.impact == "Critical")
+    high = sum(1 for f in consolidated if f.impact == "High")
+    medium = sum(1 for f in consolidated if f.impact == "Medium")
+    low = sum(1 for f in consolidated if f.impact == "Low")
+    high_consensus = sum(1 for f in consolidated if f.consensus_level == "High")
 
     summary = (
         f"Code review complete: {len(consolidated)} findings identified "
-        f"({criticos} critical, {altos} high, {medios} medium, {bajos} low). "
-        f"{alto_consenso} findings have strong consensus across agents. "
+        f"({critical} critical, {high} high, {medium} medium, {low} low). "
+        f"{high_consensus} findings have strong consensus across agents. "
         f"See detailed breakdown below."
     )
 
     risk_lines = []
     for f in consolidated:
-        if f.impacto in ("Crítico", "Alto"):
-            risk_lines.append(f"- **[{f.impacto}]** {f.hallazgo} (consensus: {f.consensus_score})")
+        if f.impact in ("Critical", "High"):
+            risk_lines.append(f"- **[{f.impact}]** {f.title} (consensus: {f.consensus_score})")
     risk_overview = "\n".join(risk_lines) if risk_lines else "No critical or high risks identified."
 
     detail_lines = []
     for i, f in enumerate(consolidated, 1):
         votes_str = ", ".join(f"{a}: {s}" for a, s in f.votes.items())
         detail_lines.append(
-            f"### {i}. [{f.impacto}] {f.hallazgo}\n"
-            f"**Evidence:** {f.detalle}\n"
-            f"**Proposal:** {f.propuesta}\n"
+            f"### {i}. [{f.impact}] {f.title}\n"
+            f"**Evidence:** {f.detail}\n"
+            f"**Proposal:** {f.proposal}\n"
             f"**Consensus:** {f.consensus_level} ({f.consensus_score}) | **Votes:** {votes_str}\n"
         )
     detailed_review = "\n".join(detail_lines)
 
     remediation_lines = []
     for i, f in enumerate(consolidated, 1):
-        remediation_lines.append(f"{i}. **[{f.impacto}]** {f.hallazgo} — {f.propuesta[:100]}...")
+        remediation_lines.append(f"{i}. **[{f.impact}]** {f.title} — {f.proposal[:100]}...")
     remediation_roadmap = (
         "### Immediate (Critical):\n" + "\n".join(
-            f"- {f.hallazgo}: {f.propuesta[:120]}"
-            for f in consolidated if f.impacto == "Crítico"
+            f"- {f.title}: {f.proposal[:120]}"
+            for f in consolidated if f.impact == "Critical"
         ) + "\n\n### Short-term (High/Medium):\n" + "\n".join(
-            f"- {f.hallazgo}: {f.propuesta[:120]}"
-            for f in consolidated if f.impacto in ("Alto", "Medio")
+            f"- {f.title}: {f.proposal[:120]}"
+            for f in consolidated if f.impact in ("High", "Medium")
         ) + "\n\n### Nice-to-have (Low):\n" + "\n".join(
-            f"- {f.hallazgo}: {f.propuesta[:120]}"
-            for f in consolidated if f.impacto == "Bajo"
+            f"- {f.title}: {f.proposal[:120]}"
+            for f in consolidated if f.impact == "Low"
         ) if consolidated else "No remediation required."
     )
 
@@ -258,7 +258,7 @@ def _cluster_findings(findings: list[Finding]) -> list[list[Finding]]:
         for idx, cluster in enumerate(clusters):
             representative = cluster[0]
             score = _text_similarity(
-                finding.hallazgo, representative.hallazgo
+                finding.title, representative.title
             )
             if score > best_score and score >= SIMILARITY_THRESHOLD:
                 best_score = score
@@ -279,21 +279,21 @@ def _consolidate_cluster(
     if not cluster:
         return None
 
-    # Pick the representative: longest hallazgo from the highest-impact finding
-    severity_order = {"Crítico": 0, "Alto": 1, "Medio": 2, "Bajo": 3}
+    # Pick the representative: longest title from the highest-impact finding
+    severity_order = {"Critical": 0, "High": 1, "Medium": 2, "Low": 3}
     cluster_sorted = sorted(
         cluster,
         key=lambda f: (
-            severity_order.get(f.impacto, 99),
-            -len(f.hallazgo),
+            severity_order.get(f.impact, 99),
+            -len(f.title),
         ),
     )
     rep = cluster_sorted[0]
 
-    # Gather votes: agent -> impacto
+    # Gather votes: agent -> impact
     votes: dict[str, str] = {}
     for f in cluster:
-        votes[f.agent] = f.impacto
+        votes[f.agent] = f.impact
 
     # Calculate consensus
     # We have 6 agents now (including vision)
@@ -302,26 +302,26 @@ def _consolidate_cluster(
     consensus_score = voting_agents / total_agents
 
     if consensus_score >= 0.8:
-        consensus_level = "Alto"
+        consensus_level = "High"
     elif consensus_score >= 0.5:
-        consensus_level = "Medio"
+        consensus_level = "Medium"
     elif consensus_score >= 0.2:
-        consensus_level = "Bajo"
+        consensus_level = "Low"
     else:
-        consensus_level = "Sin consenso"
+        consensus_level = "No consensus"
 
     # Merge details (unique, non-empty)
-    all_details = list({f.detalle for f in cluster if f.detalle})
-    merged_detail = " | ".join(all_details) if all_details else rep.detalle
+    all_details = list({f.detail for f in cluster if f.detail})
+    merged_detail = " | ".join(all_details) if all_details else rep.detail
 
-    # Pick the strongest propuesta (from highest-impact finding)
-    propuesta = rep.propuesta
+    # Pick the strongest proposal (from highest-impact finding)
+    proposal = rep.proposal
 
     return ConsolidatedFinding(
-        hallazgo=rep.hallazgo,
-        detalle=merged_detail,
-        impacto=rep.impacto,
-        propuesta=propuesta,
+        title=rep.title,
+        detail=merged_detail,
+        impact=rep.impact,
+        proposal=proposal,
         votes=votes,
         consensus_level=consensus_level,
         consensus_score=round(consensus_score, 2),
@@ -339,9 +339,9 @@ def _build_agent_metrics(
         agent_counts[f.agent] += 1
         if f.agent not in agent_severities:
             agent_severities[f.agent] = []
-        agent_severities[f.agent].append(f.impacto)
+        agent_severities[f.agent].append(f.impact)
 
-    severity_rank = {"Crítico": 0, "Alto": 1, "Medio": 2, "Bajo": 3}
+    severity_rank = {"Critical": 0, "High": 1, "Medium": 2, "Low": 3}
     metrics = {}
     for agent in sorted(agent_counts.keys()):
         sevs = agent_severities.get(agent, [])

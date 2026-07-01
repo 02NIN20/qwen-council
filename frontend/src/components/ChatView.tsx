@@ -7,11 +7,12 @@ import ChatInput from './ChatInput';
 interface ChatViewProps {
   messages: ChatMessageData[];
   onSubmit: (code: string, files?: { filename: string; content: string }[], imageUrl?: string, instruction?: string) => void;
+  onChatSubmit: (message: string) => void;
   disabled: boolean;
   sessionId?: string;
 }
 
-export default function ChatView({ messages, onSubmit, disabled, sessionId }: ChatViewProps) {
+export default function ChatView({ messages, onSubmit, onChatSubmit, disabled, sessionId }: ChatViewProps) {
   const bottomRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const [followUp, setFollowUp] = useState('');
@@ -186,7 +187,7 @@ export default function ChatView({ messages, onSubmit, disabled, sessionId }: Ch
 
       {/* Main chat input */}
       {!lastMessageIsReport && (
-        <ChatInput onSubmit={onSubmit} disabled={disabled} />
+        <ChatInput onSubmit={onSubmit} onChatSubmit={onChatSubmit} disabled={disabled} />
       )}
     </div>
   );

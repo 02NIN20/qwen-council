@@ -1,4 +1,4 @@
-import type { ReviewResponse, SessionDetail, SessionSummary } from '../types';
+import type { ReviewResponse, SessionDetail, SessionSummary, ChatResponse } from '../types';
 
 const API_BASE = '/api';
 
@@ -41,4 +41,19 @@ export async function getSessions(): Promise<SessionSummary[]> {
 
 export async function getSession(sessionId: string): Promise<SessionDetail> {
   return fetchJson<SessionDetail>(`${API_BASE}/sessions/${sessionId}`);
+}
+
+export async function sendChatMessage(
+  message: string,
+  sessionId?: string,
+  context?: string,
+): Promise<ChatResponse> {
+  return fetchJson<ChatResponse>(`${API_BASE}/chat`, {
+    method: 'POST',
+    body: JSON.stringify({
+      message,
+      session_id: sessionId,
+      context,
+    }),
+  });
 }

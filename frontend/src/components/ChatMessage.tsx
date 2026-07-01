@@ -9,6 +9,8 @@ import type {
   ReportMessage,
   ErrorMessage,
   RoundTransitionMessage,
+  AnswerMessage,
+  AgentContribution,
 } from '../types';
 import { AGENTS } from '../types';
 
@@ -16,12 +18,12 @@ import { AGENTS } from '../types';
 
 function SeverityBadge({ severity }: { severity: string }) {
   const classMap: Record<string, string> = {
-    Crítico: 'sev-critico',
-    Alto: 'sev-alto',
-    Medio: 'sev-medio',
-    Bajo: 'sev-bajo',
+    Critical: 'sev-critical',
+    High: 'sev-high',
+    Medium: 'sev-medium',
+    Low: 'sev-low',
   };
-  const cls = classMap[severity] ?? 'sev-bajo';
+  const cls = classMap[severity] ?? 'sev-low';
   return <span className={cls}>{severity.toUpperCase()}</span>;
 }
 
@@ -223,11 +225,11 @@ function FindingView({ message }: { message: FindingMessage }) {
   const { finding, agentName, agentIcon, agentColor, round } = message;
 
   // Extract possible filename from finding detail
-  const fileMatch = finding.detalle.match(/`([\w\/.-]+\.[a-z]+)`/);
+  const fileMatch = finding.detail.match(/`([\w\/.-]+\.[a-z]+)`/);
   const mentionedFile = fileMatch ? fileMatch[1] : null;
 
   const handleCopy = useCallback(() => {
-    const text = `[${finding.impacto}] ${finding.hallazgo}\n\nDetail: ${finding.detalle}\n\nProposal: ${finding.propuesta}`;
+    const text = `[${finding.impact}] ${finding.title}\n\nDetail: ${finding.detail}\n\nProposal: ${finding.proposal}`;
     navigator.clipboard.writeText(text).catch(() => {});
   }, [finding]);
 
@@ -246,7 +248,7 @@ function FindingView({ message }: { message: FindingMessage }) {
             [{mentionedFile}]
           </span>
         )}
-        <SeverityBadge severity={finding.impacto} />
+        <SeverityBadge severity={finding.impact} />
         <span className="text-[10px] text-gray-600 border border-retro-border px-1.5 py-0.5 font-mono">
           R{round}
         </span>
@@ -265,23 +267,23 @@ function FindingView({ message }: { message: FindingMessage }) {
       {/* Finding conclusion */}
       <div className="mb-2">
         <p className="text-sm font-bold text-gray-100 leading-relaxed">
-          {finding.hallazgo}
+          {finding.title}
         </p>
       </div>
 
       {/* Detail */}
-      {finding.detalle && (
+      {finding.detail && (
         <div className="mb-1.5">
-          <CollapsibleSection title="DETALLE">
-            <p>{finding.detalle}</p>
+          <CollapsibleSection title="DETAIL">
+            <p>{finding.detail}</p>
           </CollapsibleSection>
         </div>
       )}
 
       {/* Proposal */}
-      {finding.propuesta && (
-        <CollapsibleSection title="PROPUESTA">
-          <p>{finding.propuesta}</p>
+      {finding.proposal && (
+        <CollapsibleSection title="PROPOSAL">
+          <p>{finding.proposal}</p>
         </CollapsibleSection>
       )}
     </div>
@@ -292,10 +294,10 @@ function ReportView({ message }: { message: ReportMessage }) {
   const { report, sessionId } = message;
 
   // Count by severity
-  const counts: Record<string, number> = { Crítico: 0, Alto: 0, Medio: 0, Bajo: 0 };
+  const counts: Record<string, number> = { Critical: 0, High: 0, Medium: 0, Low: 0 };
   for (const f of report.findings) {
-    if (counts[f.impacto] !== undefined) counts[f.impacto]++;
-    else counts.Bajo++;
+    if (counts[f.impact] !== undefined) counts[f.impact]++;
+    else counts.Low++;
   }
   const totalFindings = report.findings.length;
 
@@ -311,13 +313,13 @@ function ReportView({ message }: { message: ReportMessage }) {
 
   for (const f of report.findings) {
     const file =
-      extractFile(f.detalle) || extractFile(f.hallazgo);
+      extractFile(f.detail) || extractFile(f.title);
     if (file) {
       if (!fileGroups[file]) {
-        fileGroups[file] = { findings: [], counts: { Crítico: 0, Alto: 0, Medio: 0, Bajo: 0 } };
+        fileGroups[file] = { findings: [], counts: { Critical: 0, High: 0, Medium: 0, Low: 0 } };
       }
       fileGroups[file].findings.push(f);
-      if (fileGroups[file].counts[f.impacto] !== undefined) fileGroups[file].counts[f.impacto]++;
+      if (fileGroups[file].counts[f.impact] !== undefined) fileGroups[file].counts[f.impact]++;
     } else {
       otherFindings.push(f);
     }
@@ -410,11 +412,11 @@ function ReportView({ message }: { message: ReportMessage }) {
                       <span key={sev} className="ml-2 text-[10px]">
                         <span
                           className={
-                            sev === 'Crítico'
+                            sev === 'Critical'
                               ? 'text-retro-red'
-                              : sev === 'Alto'
+                              : sev === 'High'
                                 ? 'text-retro-orange'
-                                : sev === 'Medio'
+                                : sev === 'Medium'
                                   ? 'text-retro-yellow'
                                   : 'text-retro-green'
                           }
@@ -462,9 +464,9 @@ function ReportView({ message }: { message: ReportMessage }) {
                   <span className="text-xs text-gray-600 font-mono flex-shrink-0">
                     [{idx + 1}]
                   </span>
-                  <SeverityBadge severity={finding.impacto} />
+        <SeverityBadge severity={finding.impact} />
                   <span className="text-sm font-bold text-gray-200 truncate">
-                    {finding.hallazgo}
+          {finding.title}
                   </span>
                 </div>
                 <svg
@@ -484,11 +486,11 @@ function ReportView({ message }: { message: ReportMessage }) {
                 <div className="mt-2 pt-2 space-y-2 border-t border-retro-border">
                   <p className="text-sm text-gray-400">
                     <span className="text-retro-cyan font-bold text-[10px] uppercase tracking-wider">Detail: </span>
-                    {finding.detalle}
+                    {finding.detail}
                   </p>
                   <p className="text-sm text-gray-400">
                     <span className="text-retro-cyan font-bold text-[10px] uppercase tracking-wider">Proposal: </span>
-                    {finding.propuesta}
+                    {finding.proposal}
                   </p>
                   {voteEntries.length > 0 && (
                     <div>
@@ -497,8 +499,8 @@ function ReportView({ message }: { message: ReportMessage }) {
                         {voteEntries.map(([agentId, vote]) => {
                           const agent = AGENTS.find((a) => a.id === agentId);
                           const sevClass = (sev: string) => {
-                            if (sev.toLowerCase().includes('crit') || sev.toLowerCase().includes('alto')) return 'text-retro-red';
-                            if (sev.toLowerCase().includes('med')) return 'text-retro-yellow';
+                            if (sev.toLowerCase().includes('critical') || sev.toLowerCase().includes('high')) return 'text-retro-red';
+                            if (sev.toLowerCase().includes('medium')) return 'text-retro-yellow';
                             return 'text-retro-green';
                           };
                           return (
@@ -545,6 +547,75 @@ function ErrorView({ message }: { message: ErrorMessage }) {
   );
 }
 
+/* ─── Answer View (General Chat) ──────────────────────────────────── */
+
+function AgentContributionCard({ contribution }: { contribution: AgentContribution }) {
+  const agentInfo = AGENTS.find((a) => a.name.toLowerCase() === contribution.agent.toLowerCase());
+  const icon = agentInfo?.icon ?? '?';
+  const color = agentInfo?.color ?? '#666';
+
+  return (
+    <div
+      className="border border-retro-border bg-retro-bg p-3"
+      style={{ borderLeft: `3px solid ${color}` }}
+    >
+      <div className="flex items-center gap-2 mb-1.5">
+        <span className="text-xs font-bold" style={{ color }}>
+          [{icon}] {contribution.agent}
+        </span>
+        <span className="text-[10px] text-gray-600 font-mono italic">
+          {contribution.role_description}
+        </span>
+      </div>
+      <p className="text-xs text-gray-400 leading-relaxed whitespace-pre-wrap">
+        {contribution.answer}
+      </p>
+    </div>
+  );
+}
+
+function AnswerMessageView({ message }: { message: AnswerMessage }) {
+  const hasContributions = message.agentContributions && message.agentContributions.length > 0;
+
+  return (
+    <div className="chat-message chat-message-answer message-enter">
+      <div className="flex items-center gap-2 mb-2">
+        <span className="text-xs font-bold text-retro-cyan">&gt; EXPERT PANEL</span>
+        {message.timestamp && (
+          <span className="text-[10px] text-gray-600">
+            {new Date(message.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+          </span>
+        )}
+      </div>
+
+      {/* The synthesized answer */}
+      <div className="mb-3">
+        <p className="text-sm text-gray-200 leading-relaxed whitespace-pre-wrap">
+          {message.text}
+        </p>
+      </div>
+
+      {/* Agent Contributions (collapsible) */}
+      {hasContributions && (
+        <CollapsibleSection title="AGENT CONTRIBUTIONS" defaultOpen={false}>
+          <div className="space-y-2">
+            {message.agentContributions!.map((contrib, idx) => (
+              <AgentContributionCard key={idx} contribution={contrib} />
+            ))}
+          </div>
+        </CollapsibleSection>
+      )}
+
+      {/* Session ID */}
+      {message.sessionId && (
+        <p className="text-[10px] text-gray-700 font-mono text-center mt-2">
+          SESSION: {message.sessionId}
+        </p>
+      )}
+    </div>
+  );
+}
+
 /* ─── Round Transition View ────────────────────────────────────────── */
 
 function RoundTransitionView({ message }: { message: RoundTransitionMessage }) {
@@ -587,6 +658,8 @@ export default function ChatMessage({ message }: ChatMessageProps) {
       return <FindingView message={message} />;
     case 'report':
       return <ReportView message={message} />;
+    case 'answer':
+      return <AnswerMessageView message={message} />;
     case 'error':
       return <ErrorView message={message} />;
     case 'round-transition':

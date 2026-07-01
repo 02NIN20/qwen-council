@@ -14,9 +14,9 @@ class Settings(BaseSettings):
     # ── Qwen Cloud API ──────────────────────────────────────────────
     qwen_api_key: str = ""
     qwen_base_url: str = "https://dashscope-intl.aliyuncs.com/compatible-mode/v1"
-    qwen_model: str = "qwen-coder-plus"
+    qwen_model: str = "qwen3-coder-plus"
     qwen_embedding_model: str = "text-embedding-v3"
-    qwen_timeout_seconds: int = 120
+    qwen_timeout_seconds: int = 300
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)

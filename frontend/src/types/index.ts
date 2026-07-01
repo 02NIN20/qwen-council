@@ -1,17 +1,17 @@
 export interface Finding {
   agent: string;
-  hallazgo: string;
-  detalle: string;
-  impacto: 'Crítico' | 'Alto' | 'Medio' | 'Bajo';
-  propuesta: string;
-  ronda: number;
+  title: string;
+  detail: string;
+  impact: 'Critical' | 'High' | 'Medium' | 'Low';
+  proposal: string;
+  round_num: number;
 }
 
 export interface ConsolidatedFinding {
-  hallazgo: string;
-  detalle: string;
-  impacto: string;
-  propuesta: string;
+  title: string;
+  detail: string;
+  impact: string;
+  proposal: string;
   votes: Record<string, string>;
   consensus_level: string;
   consensus_score: number;
@@ -120,6 +120,20 @@ export const AGENTS: AgentInfo[] = [
 
 export type AppPhase = 'idle' | 'analyzing' | 'round1' | 'round2' | 'round3' | 'complete' | 'error';
 
+// ─── General Chat Types ──────────────────────────────────────────────────
+
+export interface AgentContribution {
+  agent: string;
+  role_description: string;
+  answer: string;
+}
+
+export interface ChatResponse {
+  response: string;
+  session_id: string;
+  agent_contributions?: AgentContribution[];
+}
+
 // ─── Chat Interface Types ────────────────────────────────────────────────
 
 export interface AgentProgress {
@@ -178,10 +192,20 @@ export interface RoundTransitionMessage {
   label: string;
 }
 
+export interface AnswerMessage {
+  id: string;
+  role: 'answer';
+  text: string;
+  agentContributions?: AgentContribution[];
+  sessionId?: string;
+  timestamp?: number;
+}
+
 export type ChatMessageData =
   | UserMessage
   | AgentProgressMessage
   | FindingMessage
   | ReportMessage
   | ErrorMessage
-  | RoundTransitionMessage;
+  | RoundTransitionMessage
+  | AnswerMessage;

@@ -212,7 +212,7 @@ impacto: 'Crítico' | 'Alto' | 'Medio' | 'Bajo';
    ```
 2. Update `frontend/src/types/index.ts` line 5 to match:
    ```typescript
-   impacto: 'Critical' | 'High' | 'Medium' | 'Low';
+   impact: 'Critical' | 'High' | 'Medium' | 'Low';
    ```
 
 ---
@@ -299,7 +299,7 @@ severity_order = {"Critical": 0, "High": 1, "Medium": 2, "Low": 3}
 // Change from:
 impacto: 'Crítico' | 'Alto' | 'Medio' | 'Bajo';
 // To:
-impacto: 'Critical' | 'High' | 'Medium' | 'Low';
+impact: 'Critical' | 'High' | 'Medium' | 'Low';
 ```
 
 ### 2. Add input size limit (2 minutes)

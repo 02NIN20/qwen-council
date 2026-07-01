@@ -2,6 +2,7 @@ import { useState, useRef, useEffect, useCallback, type DragEvent, type ChangeEv
 
 interface ChatInputProps {
   onSubmit: (code: string, files: { filename: string; content: string }[], imageUrl?: string, instruction?: string) => void;
+  onChatSubmit: (message: string) => void;
   disabled: boolean;
 }
 
@@ -38,12 +39,13 @@ function truncateFileName(name: string, maxLen = 30): string {
   return base.slice(0, available) + '...' + extStr;
 }
 
-export default function ChatInput({ onSubmit, disabled }: ChatInputProps) {
+export default function ChatInput({ onSubmit, onChatSubmit, disabled }: ChatInputProps) {
   const [files, setFiles] = useState<SelectedFile[]>([]);
   const [showImageInput, setShowImageInput] = useState(false);
   const [imageUrl, setImageUrl] = useState('');
   const [instruction, setInstruction] = useState('');
   const [isDragOver, setIsDragOver] = useState(false);
+  const [chatText, setChatText] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Reset file input value
@@ -142,6 +144,22 @@ export default function ChatInput({ onSubmit, disabled }: ChatInputProps) {
     setImageUrl('');
     setShowImageInput(false);
   }, [files, imageUrl, instruction, disabled, onSubmit]);
+
+  const handleChatSubmit = useCallback(() => {
+    if (!chatText.trim() || disabled) return;
+    onChatSubmit(chatText.trim());
+    setChatText('');
+  }, [chatText, disabled, onChatSubmit]);
+
+  const handleKeyDownChat = useCallback(
+    (e: React.KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+        e.preventDefault();
+        handleChatSubmit();
+      }
+    },
+    [handleChatSubmit]
+  );
 
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent) => {
@@ -385,8 +403,48 @@ export default function ChatInput({ onSubmit, disabled }: ChatInputProps) {
         </div>
       </div>
 
+      {/* Separator between file mode and chat mode */}
+      {files.length > 0 && (
+        <div className="flex items-center gap-2 my-2">
+          <div className="flex-1 h-px bg-retro-border" />
+          <span className="text-[10px] text-gray-600 uppercase tracking-wider font-mono">or ask a question</span>
+          <div className="flex-1 h-px bg-retro-border" />
+        </div>
+      )}
+
+      {/* Chat text input */}
+      <div className="flex gap-2">
+        <textarea
+          value={chatText}
+          onChange={(e) => setChatText(e.target.value)}
+          onKeyDown={handleKeyDownChat}
+          placeholder={files.length > 0 ? "Ask a question about the attached files..." : "Ask a question to the expert panel..."}
+          className="flex-1 bg-retro-bg border border-retro-border px-3 py-2 text-sm text-gray-200 placeholder:text-gray-600 outline-none focus:border-retro-cyan transition-colors font-mono resize-none"
+          rows={2}
+          disabled={disabled}
+          aria-label="Ask a question"
+        />
+        <button
+          onClick={handleChatSubmit}
+          disabled={!chatText.trim() || disabled}
+          className="p-2.5 border-2 border-retro-cyan bg-retro-cyan text-black font-bold hover:bg-transparent hover:text-retro-cyan transition-colors disabled:opacity-40"
+          aria-label="Send question"
+        >
+          {disabled ? (
+            <svg className="w-5 h-5 animate-spin" fill="none" viewBox="0 0 24 24">
+              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+            </svg>
+          ) : (
+            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M5 12h14M12 5l7 7-7 7" />
+            </svg>
+          )}
+        </button>
+      </div>
+
       {/* Hint */}
-      {!disabled && files.length === 0 && (
+      {!disabled && files.length === 0 && !chatText.trim() && (
         <p className="text-[10px] text-gray-600 mt-1.5 text-center">
           <kbd className="px-1 py-0.5 bg-retro-bg text-gray-500 text-[10px] font-mono border border-retro-border">
             Ctrl+Enter

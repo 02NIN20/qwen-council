@@ -1,7 +1,7 @@
 """Protocol formatters for the Inverted Pyramid and Given-New communication pattern.
 
 Every message between agents follows the Inverted Pyramid structure:
-  HALLAZGO + ··· Detalle + ··· Impacto + ··· Propuesta
+  FINDING + ··· Detail + ··· Impact + ··· Proposal
 """
 
 from __future__ import annotations
@@ -35,10 +35,10 @@ def format_finding(finding: Finding, include_agent: bool = False) -> str:
     parts: list[str] = []
     if include_agent:
         parts.append(f"[{finding.agent}]")
-    parts.append(f"HALLAZGO: {finding.hallazgo}")
-    parts.append(f"··· Detalle: {finding.detalle}")
-    parts.append(f"··· Impacto: {finding.impacto}")
-    parts.append(f"··· Propuesta: {finding.propuesta}")
+    parts.append(f"FINDING: {finding.title}")
+    parts.append(f"··· Detail: {finding.detail}")
+    parts.append(f"··· Impact: {finding.impact}")
+    parts.append(f"··· Proposal: {finding.proposal}")
     return "\n".join(parts)
 
 
@@ -54,11 +54,11 @@ def format_findings_list(
 def format_round_header(round: int) -> str:
     """Return a header string for a given round."""
     titles = {
-        1: "═══ RONDA 1: Análisis Individual ═══",
-        2: "═══ RONDA 2: Debate Cruzado (Dado-Nuevo) ═══",
-        3: "═══ RONDA 3: Refinamiento Final ═══",
+        1: "═══ ROUND 1: Individual Analysis ═══",
+        2: "═══ ROUND 2: Cross Debate (Given-New) ═══",
+        3: "═══ ROUND 3: Final Refinement ═══",
     }
-    return titles.get(round, f"═══ Ronda {round} ═══")
+    return titles.get(round, f"═══ Round {round} ═══")
 
 
 # ──────────────────────────────────────────────
@@ -84,20 +84,20 @@ def add_dado_nuevo(
     Returns
     -------
     str
-        A Dado-Nuevo prefixed version of the finding's hallazgo.
+        A Dado-Nuevo prefixed version of the finding's title.
     """
     if not previous_findings:
-        return my_finding.hallazgo
+        return my_finding.title
 
     # Try to find a related previous finding by keyword overlap
-    my_keywords = _extract_keywords(my_finding.hallazgo)
+    my_keywords = _extract_keywords(my_finding.title)
     best_match: Finding | None = None
     best_score = 0
 
     for prev in previous_findings:
         if prev.agent == my_finding.agent:
             continue
-        prev_keywords = _extract_keywords(prev.hallazgo)
+        prev_keywords = _extract_keywords(prev.title)
         overlap = len(my_keywords & prev_keywords)
         if overlap > best_score:
             best_score = overlap
@@ -112,12 +112,12 @@ def add_dado_nuevo(
 
     if best_match is not None:
         prefix = (
-            f"Coincidiendo con [{best_match.agent}] sobre "
-            f"\"{best_match.hallazgo}\", agrego que: {my_finding.hallazgo}"
+            f"Agreeing with [{best_match.agent}] on "
+            f"\"{best_match.title}\", I add that: {my_finding.title}"
         )
         return prefix
 
-    return my_finding.hallazgo
+    return my_finding.title
 
 
 # ──────────────────────────────────────────────
@@ -138,10 +138,10 @@ def parse_finding(text: str) -> Finding | None:
     Finding | None
     """
     lines = text.strip().split("\n")
-    hallazgo = ""
-    detalle = ""
-    impacto = ""
-    propuesta = ""
+    title = ""
+    detail = ""
+    impact = ""
+    proposal = ""
 
     # Try to extract agent name from prefix like "[security]"
     agent_match = re.match(r"^\[(\w+)\]", lines[0]) if lines else None
@@ -149,38 +149,38 @@ def parse_finding(text: str) -> Finding | None:
 
     for line in lines:
         line = line.strip()
-        if line.startswith("HALLAZGO:"):
-            hallazgo = line[len("HALLAZGO:"):].strip()
-        elif line.startswith("··· Detalle:") or line.startswith("···Detalle:"):
-            detalle = line.split(":", 1)[1].strip() if ":" in line else ""
-        elif line.startswith("··· Impacto:") or line.startswith("···Impacto:"):
-            impacto = line.split(":", 1)[1].strip() if ":" in line else ""
-        elif line.startswith("··· Propuesta:") or line.startswith("···Propuesta:"):
-            propuesta = line.split(":", 1)[1].strip() if ":" in line else ""
+        if line.startswith("FINDING:"):
+            title = line[len("FINDING:"):].strip()
+        elif line.startswith("··· Detail:") or line.startswith("···Detail:"):
+            detail = line.split(":", 1)[1].strip() if ":" in line else ""
+        elif line.startswith("··· Impact:") or line.startswith("···Impact:"):
+            impact = line.split(":", 1)[1].strip() if ":" in line else ""
+        elif line.startswith("··· Proposal:") or line.startswith("···Proposal:"):
+            proposal = line.split(":", 1)[1].strip() if ":" in line else ""
 
-    if not hallazgo:
+    if not title:
         return None
 
     # Normalize impact
-    impacto_lower = impacto.lower().strip()
-    if "critico" in impacto_lower or "crítico" in impacto_lower:
-        impacto = "Crítico"
-    elif "alto" in impacto_lower:
-        impacto = "Alto"
-    elif "medio" in impacto_lower:
-        impacto = "Medio"
-    elif "bajo" in impacto_lower:
-        impacto = "Bajo"
+    impact_lower = impact.lower().strip()
+    if "critical" in impact_lower or "critico" in impact_lower or "crítico" in impact_lower:
+        impact = "Critical"
+    elif "high" in impact_lower or "alto" in impact_lower:
+        impact = "High"
+    elif "medium" in impact_lower or "medio" in impact_lower:
+        impact = "Medium"
+    elif "low" in impact_lower or "bajo" in impact_lower:
+        impact = "Low"
     else:
-        impacto = "Medio"
+        impact = "Medium"
 
     return Finding(
         agent=agent,
-        hallazgo=hallazgo,
-        detalle=detalle,
-        impacto=impacto,
-        propuesta=propuesta,
-        ronda=0,
+        title=title,
+        detail=detail,
+        impact=impact,
+        proposal=proposal,
+        round_num=0,
     )
 
 
@@ -192,12 +192,19 @@ def parse_finding(text: str) -> Finding | None:
 def _extract_keywords(text: str) -> set[str]:
     """Extract meaningful lowercase keywords from text."""
     stop_words = {
-        "el", "la", "los", "las", "un", "una", "de", "del", "en", "por",
-        "para", "con", "sin", "y", "e", "o", "a", "que", "es", "se",
-        "su", "lo", "como", "más", "pero", "sus", "le", "ya", "este",
-        "entre", "porque", "era", "muy", "sin", "sobre", "también",
-        "tras", "había", "coincidiendo", "discrepo", "complementando",
-        "agrego", "dice", "sobre", "que",
+        "the", "a", "an", "is", "are", "was", "were", "be", "been", "being",
+        "have", "has", "had", "do", "does", "did", "will", "would", "could",
+        "should", "may", "might", "shall", "can", "need", "dare", "ought",
+        "used", "this", "that", "these", "those", "it", "its", "they", "them",
+        "their", "we", "us", "our", "you", "your", "he", "him", "his", "she",
+        "her", "i", "me", "my", "who", "whom", "which", "what", "not", "no",
+        "nor", "and", "but", "or", "for", "so", "yet", "with", "without", "at",
+        "in", "on", "by", "from", "to", "into", "through", "during", "before",
+        "after", "above", "below", "between", "out", "off", "over", "under",
+        "again", "further", "then", "once", "here", "there", "when", "where",
+        "why", "how", "all", "each", "every", "both", "few", "more", "most",
+        "other", "some", "such", "only", "own", "same", "so", "than", "too",
+        "very",
     }
     words = re.findall(r"\w{4,}", text.lower())
     return {w for w in words if w not in stop_words}

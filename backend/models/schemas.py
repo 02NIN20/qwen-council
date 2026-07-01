@@ -21,19 +21,19 @@ class Finding(BaseModel):
     """A single finding produced by an agent."""
 
     agent: str = Field(..., description="Agent identifier (security, architecture, …)")
-    hallazgo: str = Field(..., description="Main conclusion in one line")
-    detalle: str = Field(..., description="Concrete evidence with file/line/fragment")
-    impacto: str = Field(..., description="Severity: Critical | High | Medium | Low")
-    propuesta: str = Field(..., description="Suggested corrective action")
-    ronda: int = Field(1, description="Round in which this finding was produced")
+    title: str = Field(..., description="Main conclusion in one line")
+    detail: str = Field(..., description="Concrete evidence with file/line/fragment")
+    impact: str = Field(..., description="Severity: Critical | High | Medium | Low")
+    proposal: str = Field(..., description="Suggested corrective action")
+    round_num: int = Field(1, description="Round in which this finding was produced")
 
     def dict_pyramid(self) -> dict[str, Any]:
         """Return a dict keyed by the Inverted Pyramid labels."""
         return {
-            "FINDING": self.hallazgo,
-            "Detail": self.detalle,
-            "Impact": self.impacto,
-            "Proposal": self.propuesta,
+            "FINDING": self.title,
+            "Detail": self.detail,
+            "Impact": self.impact,
+            "Proposal": self.proposal,
         }
 
 
@@ -45,10 +45,10 @@ class Finding(BaseModel):
 class ConsolidatedFinding(BaseModel):
     """A finding after cross-agent synthesis with votes."""
 
-    hallazgo: str = Field(..., description="Consolidated conclusion")
-    detalle: str = Field(..., description="Consolidated evidence")
-    impacto: str = Field(..., description="Final severity")
-    propuesta: str = Field(..., description="Final recommendation")
+    title: str = Field(..., description="Consolidated conclusion")
+    detail: str = Field(..., description="Consolidated evidence")
+    impact: str = Field(..., description="Final severity")
+    proposal: str = Field(..., description="Final recommendation")
     votes: dict[str, str] = Field(
         default_factory=dict, description="Agent → severity mapping"
     )
@@ -129,16 +129,28 @@ class ReviewResponse(BaseModel):
 
 
 class ChatRequest(BaseModel):
-    """POST /api/chat payload."""
-    session_id: str = Field(..., description="Session to ask about")
-    message: str = Field(..., min_length=1, max_length=4000, description="Follow-up question")
-    context: str | None = Field(None, max_length=20000, description="Report/findings context from the review")
+    """POST /api/chat payload for general multi-agent chat."""
+    message: str = Field(..., min_length=1, max_length=4000, description="User question or message")
+    session_id: str | None = Field(None, description="Optional session for context")
+    context: str | None = Field(None, max_length=20000, description="Additional context")
+    files: list[FileContent] = Field(default_factory=list, max_length=20, description="Optional files for context")
+
+
+class AgentContribution(BaseModel):
+    """A single agent's response to a chat question."""
+    agent: str = Field(..., description="Agent identifier")
+    role_description: str = Field(..., description="What this agent specialises in")
+    answer: str = Field(..., description="Agent's response text")
 
 
 class ChatResponse(BaseModel):
-    """POST /api/chat response."""
-    response: str
+    """POST /api/chat response with multi-agent answers."""
+    response: str = Field(..., description="Synthesized final answer")
     session_id: str
+    agent_contributions: list[AgentContribution] = Field(
+        default_factory=list,
+        description="Individual answers from each agent",
+    )
 
 
 class SessionSummary(BaseModel):

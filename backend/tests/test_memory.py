@@ -90,7 +90,7 @@ class TestEpisodicMemory:
         record = await mgr.save(
             session_id="ses-1",
             code="def foo(): pass",
-            findings=[{"agent": "security", "hallazgo": "test"}],
+            findings=[{"agent": "security", "title": "test"}],
         )
         assert record.session_id == "ses-1"
         assert record.code == "def foo(): pass"
@@ -116,7 +116,7 @@ class TestEpisodicMemory:
         record = await mgr.save(
             session_id="ses-1",
             code="new code",
-            findings=[{"agent": "security", "hallazgo": "updated"}],
+            findings=[{"agent": "security", "title": "updated"}],
         )
         assert record.code == "new code"
         assert record.score == 1.0
@@ -401,7 +401,7 @@ class TestConsolidator:
                 session_id=f"ses-{i}",
                 code_hash=f"hash{i}",
                 code="code",
-                findings_json=f'[{{"agent": "security", "hallazgo": "{repeated_finding}", "detalle": "test", "impacto": "Crítico", "propuesta": "fix", "ronda": 1}}]',
+                findings_json=f'[{{"agent": "security", "title": "{repeated_finding}", "detail": "test", "impact": "Critical", "proposal": "fix", "round_num": 1}}]',
                 score=1.0,
                 created_at=datetime.now(timezone.utc) - timedelta(days=i),
             )
@@ -433,7 +433,7 @@ class TestConsolidator:
             session_id="ses-1",
             code_hash="hash",
             code="code",
-            findings_json='[{"agent": "quality", "hallazgo": "Unique finding only once", "detalle": "test", "impacto": "Medio", "propuesta": "fix", "ronda": 1}]',
+            findings_json='[{"agent": "quality", "title": "Unique finding only once", "detail": "test", "impact": "Medium", "proposal": "fix", "round_num": 1}]',
             score=1.0,
             created_at=datetime.now(timezone.utc),
         )
@@ -459,7 +459,7 @@ class TestConsolidator:
             session_id="ses-current",
             code_hash="hash",
             code="code",
-            findings_json='[{"agent": "security", "hallazgo": "Test pattern", "detalle": "d", "impacto": "Crítico", "propuesta": "p", "ronda": 1}]',
+            findings_json='[{"agent": "security", "title": "Test pattern", "detail": "d", "impact": "Critical", "proposal": "p", "round_num": 1}]',
             score=1.0,
             created_at=datetime.now(timezone.utc),
         )
@@ -476,8 +476,8 @@ class TestConsolidator:
         """_infer_category returns the agent name for agent-voted patterns."""
         pattern = "SQL injection vulnerability"
         findings = [
-            {"agent": "security", "hallazgo": "SQL injection vulnerability"},
-            {"agent": "security", "hallazgo": "SQL injection vulnerability"},
+            {"agent": "security", "title": "SQL injection vulnerability"},
+            {"agent": "security", "title": "SQL injection vulnerability"},
         ]
         category = Consolidator._infer_category(pattern, findings)
         assert category == "security"
@@ -494,8 +494,8 @@ class TestConsolidator:
         assert category == "architecture"
 
     def test_infer_category_fallback_quality(self):
-        """Uses Spanish fallback keywords for quality."""
-        pattern = "Alta complejidad ciclomática en la función"
+        """Uses English fallback keywords for quality."""
+        pattern = "High complexity in the function"
         category = Consolidator._infer_category(pattern, [])
         assert category == "quality"
 
@@ -505,8 +505,8 @@ class TestConsolidator:
         assert category == "performance"
 
     def test_infer_category_fallback_ux(self):
-        """Uses Spanish fallback keywords for UX."""
-        pattern = "Problema de accesibilidad en el formulario"
+        """Uses English fallback keywords for UX."""
+        pattern = "Missing keyboard accessibility on form"
         category = Consolidator._infer_category(pattern, [])
         assert category == "ux"
 

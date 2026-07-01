@@ -38,17 +38,17 @@ ALL_AGENT_CLASSES = [
 
 def assert_inverted_pyramid(finding: Finding) -> None:
     """Verify a Finding has all Inverted Pyramid fields populated."""
-    assert finding.hallazgo, "FINDING (hallazgo) must not be empty"
-    assert finding.detalle, "Detail (detalle) must not be empty"
-    assert finding.impacto in (
-        "Crítico",
-        "Alto",
-        "Medio",
-        "Bajo",
-    ), f"Impact must be one of Crítico|Alto|Medio|Bajo, got {finding.impacto}"
-    assert finding.propuesta, "Proposal (propuesta) must not be empty"
+    assert finding.title, "FINDING (title) must not be empty"
+    assert finding.detail, "Detail must not be empty"
+    assert finding.impact in (
+        "Critical",
+        "High",
+        "Medium",
+        "Low",
+    ), f"Impact must be one of Critical|High|Medium|Low, got {finding.impact}"
+    assert finding.proposal, "Proposal must not be empty"
     assert finding.agent, "Agent name must not be empty"
-    assert finding.ronda in (1, 2, 3), f"Round must be 1, 2, or 3, got {finding.ronda}"
+    assert finding.round_num in (1, 2, 3), f"Round must be 1, 2, or 3, got {finding.round_num}"
 
 
 # ──────────────────────────────────────────────
@@ -142,10 +142,10 @@ async def test_agent_receives_context_in_round_2(mock_qwen_client_given_new):
     context = [
         {
             "agent": "architecture",
-            "hallazgo": "No separation of concerns",
-            "detalle": "Mixing DB and business logic",
-            "impacto": "High",
-            "propuesta": "Extract repository pattern",
+            "title": "No separation of concerns",
+            "detail": "Mixing DB and business logic",
+            "impact": "High",
+            "proposal": "Extract repository pattern",
         }
     ]
     findings = await agent.analyze(
@@ -153,10 +153,10 @@ async def test_agent_receives_context_in_round_2(mock_qwen_client_given_new):
     )
     # The mock returns a Given-New style response
     assert len(findings) > 0
-    # The hallazgo should reference the Given-New format
+    # The title should reference the Given-New format
     # (the mock response is SAMPLE_GIVEN_NEW_TEXT which starts with "Agreeing with")
     # In a real scenario, the finding text contains the reference
-    assert any("Agreeing" in f.hallazgo or "validation" in f.hallazgo for f in findings)
+    assert any("Agreeing" in f.title or "validation" in f.title for f in findings)
 
 
 @pytest.mark.asyncio
@@ -169,10 +169,10 @@ async def test_round_2_context_passed_to_llm(mock_qwen_client):
     context = [
         {
             "agent": "architecture",
-            "hallazgo": "No separation of concerns",
-            "detalle": "Mixing DB and business logic",
-            "impacto": "High",
-            "propuesta": "Extract repository pattern",
+            "title": "No separation of concerns",
+            "detail": "Mixing DB and business logic",
+            "impact": "High",
+            "proposal": "Extract repository pattern",
         }
     ]
     prompt = agent._build_user_prompt(code=SAMPLE_CODE_VULNERABLE, context=context, round=2)
@@ -242,11 +242,11 @@ async def test_parse_single_finding():
     findings = agent._parse_findings(text, round=1)
     assert len(findings) == 1
     f = findings[0]
-    assert f.hallazgo == "SQL injection in query"
-    assert f.detalle == "Unsanitized input at line 5"
-    assert f.impacto == "Crítico"
-    assert f.propuesta == "Use parameterised queries"
-    assert f.ronda == 1
+    assert f.title == "SQL injection in query"
+    assert f.detail == "Unsanitized input at line 5"
+    assert f.impact == "Critical"
+    assert f.proposal == "Use parameterised queries"
+    assert f.round_num == 1
 
 
 @pytest.mark.asyncio
@@ -270,16 +270,16 @@ async def test_parse_multiple_findings():
 
 @pytest.mark.asyncio
 async def test_normalize_impact():
-    """Impact normalization maps variations to canonical Spanish values."""
+    """Impact normalization maps variations to canonical English values."""
     agent = SecurityAgent()
-    assert agent._normalize_impact("Critical") == "Crítico"
-    assert agent._normalize_impact("CRITICAL") == "Crítico"
-    assert agent._normalize_impact("Crítico") == "Crítico"
-    assert agent._normalize_impact("High") == "Alto"
-    assert agent._normalize_impact("MEDIUM") == "Medio"
-    assert agent._normalize_impact("low priority") == "Bajo"
-    assert agent._normalize_impact("unknown value") == "Medio"  # fallback
-    assert agent._normalize_impact("") == "Medio"  # fallback
+    assert agent._normalize_impact("Critical") == "Critical"
+    assert agent._normalize_impact("CRITICAL") == "Critical"
+    assert agent._normalize_impact("Crítico") == "Critical"
+    assert agent._normalize_impact("High") == "High"
+    assert agent._normalize_impact("MEDIUM") == "Medium"
+    assert agent._normalize_impact("low priority") == "Low"
+    assert agent._normalize_impact("unknown value") == "Medium"  # fallback
+    assert agent._normalize_impact("") == "Medium"  # fallback
 
 
 @pytest.mark.asyncio

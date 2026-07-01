@@ -120,7 +120,7 @@
   }
 
   /* ── Severity badges ── */
-  .sev-critico {
+  .sev-critical {
     padding: 2px 8px;
     font-size: 0.75rem;
     font-weight: 700;
@@ -129,7 +129,7 @@
     border: 1px solid #ff3355;
   }
 
-  .sev-alto {
+  .sev-high {
     padding: 2px 8px;
     font-size: 0.75rem;
     font-weight: 700;
@@ -138,7 +138,7 @@
     border: 1px solid #ff8800;
   }
 
-  .sev-medio {
+  .sev-medium {
     padding: 2px 8px;
     font-size: 0.75rem;
     font-weight: 700;
@@ -147,7 +147,7 @@
     border: 1px solid #ffff00;
   }
 
-  .sev-bajo {
+  .sev-low {
     padding: 2px 8px;
     font-size: 0.75rem;
     font-weight: 700;
@@ -177,6 +177,10 @@
   .chat-message-finding {
     border-left-width: 3px;
     border-left-style: solid;
+  }
+
+  .chat-message-answer {
+    border-left: 3px solid #00fff8;
   }
 
   /* ── Drop zone ── */

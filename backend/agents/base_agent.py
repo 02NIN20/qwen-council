@@ -84,7 +84,7 @@ class BaseAgent(ABC):
             "**Inverted Pyramid** format. Each finding must have this exact structure:\n\n"
             "FINDING: <one-line conclusion>\n"
             "··· Detail: <concrete evidence with EXACT line numbers, code snippet, CWE reference if applicable>\n"
-            "··· Impact: <Crítico | Alto | Medio | Bajo>\n"
+            "··· Impact: <Critical | High | Medium | Low>\n"
             "··· Proposal: <step-by-step corrective action with BEFORE/AFTER code example>\n\n"
             "Rules:\n"
             "- Do NOT include any text outside the specified format.\n"
@@ -93,8 +93,8 @@ class BaseAgent(ABC):
             "- CRITICAL: Always include EXACT line numbers and the actual problematic code.\n"
             "- CRITICAL: In Proposal, show BEFORE (problematic code) and AFTER (fixed code).\n"
             "- CRITICAL: Reference CWE identifiers when applicable (e.g., CWE-89 for SQL injection).\n"
-            "- Use correct impact level: Crítico (exploitable vulnerability/severe bug), "
-            "Alto (significant issue), Medio (important improvement), Bajo (minor suggestion)."
+            "- Use correct impact level: Critical (exploitable vulnerability/severe bug), "
+            "High (significant issue), Medium (important improvement), Low (minor suggestion)."
         )
 
     def _build_round_intro(self, round: int) -> str:
@@ -141,18 +141,18 @@ class BaseAgent(ABC):
         block_parts = ["\n### Previous round findings from other agents:\n"]
         for i, item in enumerate(context, 1):
             agent_name = item.get("agent", f"Agent {i}")
-            block_parts.append(f"\n--- {agent_name} (Round {item.get('ronda', '?')}) ---")
-            hallazgo = item.get("hallazgo", "")
-            detalle = item.get("detalle", "")
-            impacto = item.get("impacto", "")
-            propuesta = item.get("propuesta", "")
-            block_parts.append(f"FINDING: {hallazgo}")
-            if detalle:
-                block_parts.append(f"··· Detail: {detalle}")
-            if impacto:
-                block_parts.append(f"··· Impact: {impacto}")
-            if propuesta:
-                block_parts.append(f"··· Proposal: {propuesta}")
+            block_parts.append(f"\n--- {agent_name} (Round {item.get('round_num', '?')}) ---")
+            title = item.get("title", "")
+            detail = item.get("detail", "")
+            impact = item.get("impact", "")
+            proposal = item.get("proposal", "")
+            block_parts.append(f"FINDING: {title}")
+            if detail:
+                block_parts.append(f"··· Detail: {detail}")
+            if impact:
+                block_parts.append(f"··· Impact: {impact}")
+            if proposal:
+                block_parts.append(f"··· Proposal: {proposal}")
         block_parts.append(
             "\n\nNow produce YOUR analysis of the code. "
             "Reference the findings above using Given-New structure. "
@@ -187,6 +187,40 @@ class BaseAgent(ABC):
                 "- For retained findings, use the Inverted Pyramid format."
             )
         return "\n".join(parts)
+
+    # ──────────────────────────────────────────────
+    #  General Q&A (non-code-review)
+    # ──────────────────────────────────────────────
+
+    async def answer_question(self, question: str, context: str | None = None) -> str:
+        """Answer a general question in this agent's domain expertise.
+
+        Unlike analyze() which does code review, this method handles
+        general Q&A where the agent provides expert knowledge.
+        """
+        system_prompt = (
+            f"You are an expert in {self.role_description}. "
+            "Answer the user's question based on your expertise. "
+            "Be specific, technical, and actionable. "
+            "If the question is outside your domain, say so briefly "
+            "and then provide whatever relevant insight you can.\n\n"
+            "Format your response concisely but thoroughly."
+        )
+
+        user_content = f"### Question:\n{question}\n"
+        if context:
+            user_content += f"\n### Context:\n{context}\n"
+
+        response = await self._client.chat.completions.create(
+            model=self._model,
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_content},
+            ],
+            temperature=0.3,
+            max_tokens=1024,
+        )
+        return response.choices[0].message.content or "I could not generate a response."
 
     # ──────────────────────────────────────────────
     #  LLM call
@@ -264,23 +298,23 @@ class BaseAgent(ABC):
 
         return Finding(
             agent=self.name,
-            hallazgo=finding_text,
-            detalle=detail,
-            impacto=impact,
-            propuesta=proposal,
-            ronda=round,
+            title=finding_text,
+            detail=detail,
+            impact=impact,
+            proposal=proposal,
+            round_num=round,
         )
 
     @staticmethod
     def _normalize_impact(impact: str) -> str:
-        """Normalize impact level to one of Crítico|Alto|Medio|Bajo."""
+        """Normalize impact level to one of Critical|High|Medium|Low."""
         normalized = impact.lower().strip()
-        if "critical" in normalized or "crítico" in normalized:
-            return "Crítico"
+        if "critical" in normalized or "crítico" in normalized or "critico" in normalized:
+            return "Critical"
         if "high" in normalized or "alto" in normalized:
-            return "Alto"
+            return "High"
         if "medium" in normalized or "medio" in normalized:
-            return "Medio"
+            return "Medium"
         if "low" in normalized or "bajo" in normalized:
-            return "Bajo"
-        return "Medio"
+            return "Low"
+        return "Medium"

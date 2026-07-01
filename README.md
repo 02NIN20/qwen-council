@@ -151,19 +151,19 @@ The frontend will be available on `http://localhost:5173` and the API on `http:/
   "report": {
     "summary": "The code review identified critical security issues...",
     "risk_overview": "Critical risks include SQL injection...",
-    "detailed_review": "1. [Critico] SQL Injection...",
+    "detailed_review": "1. [Critical] SQL Injection...",
     "remediation_roadmap": "1. Use parameterized queries...",
     "agent_metrics": {
       "per_agent": {
-        "security": { "findings_count": 9, "top_severity": "Crítico" }
+        "security": { "findings_count": 9, "top_severity": "Critical" }
       }
     },
     "findings": [
       {
-        "hallazgo": "SQL injection vulnerability",
-        "impacto": "Crítico",
-        "votes": { "security": "Crítico", "architecture": "Alto" },
-        "consensus_level": "Alto",
+        "title": "SQL injection vulnerability",
+        "impact": "Critical",
+        "votes": { "security": "Critical", "architecture": "High" },
+        "consensus_level": "High",
         "consensus_score": 1.0
       }
     ]
@@ -180,7 +180,7 @@ Each agent message follows the **Inverted Pyramid** format:
 ```
 FINDING: SQL injection vulnerability at user input handling
 ... Detail: src/app.py line 45: cursor.execute(f"SELECT * FROM users WHERE id = {user_input}") (CWE-89)
-... Impact: Critico
+... Impact: Critical
 ... Proposal: Use parameterised queries. BEFORE: cursor.execute(f"SELECT...{user_input}") AFTER: cursor.execute("SELECT...WHERE id = ?", (user_input,))
 ```
 
@@ -189,7 +189,7 @@ In rounds 2+, agents apply **Given-New** cross-referencing:
 ```
 FINDING: Agreeing with Security on SQL injection at line 45, I found the same pattern at line 78
 ... Detail: src/app.py line 78: same f-string pattern in delete_user() (CWE-89)
-... Impact: Critico
+... Impact: Critical
 ... Proposal: Create a safe_query() helper that always uses parameterisation
 ```
 

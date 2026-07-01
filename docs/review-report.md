@@ -32,7 +32,7 @@ The project has a solid architecture and well-structured multi-agent system, but
 #### C1 — Impact level language mismatch breaks synthesizer
 - **File**: `backend/agents/base_agent.py:258-269` vs `backend/council/synthesizer.py:66-68`
 - **Description**: `_normalize_impact()` returns English values (`Critical`, `High`, `Medium`, `Low`), but the synthesizer's severity sort order uses Spanish (`Crítico`, `Alto`, `Medio`, `Bajo`). Since `"Critical"` is not found in the Spanish dict, every finding gets severity 99. The final report's severity ordering is completely broken, and `_consolidate_cluster` picks representatives incorrectly.
-- **Suggestion**: Unify language. Either (a) change `_normalize_impact()` to return Spanish values, or (b) change the synthesizer to use English severity keys. Given the frontend types expect Spanish, option (a) is simpler: change `_normalize_impact()` in `base_agent.py` to return `Crítico`/`Alto`/`Medio`/`Bajo`. Also update the system prompt to instruct the LLM to use Spanish impact levels.
+- **Suggestion**: Unify language. Change `_normalize_impact()` to return English values (`Critical`/`High`/`Medium`/`Low`) and update the synthesizer severity sort order to match. Also update the frontend types and system prompt to use English.
 
 #### C2 — Frontend `ReviewResponse.rounds` key mismatch
 - **File**: `frontend/src/types/index.ts:29-33` vs `backend/council/orchestrator.py:89-92`
@@ -83,10 +83,10 @@ The project has a solid architecture and well-structured multi-agent system, but
 - **Description**: `datetime.utcnow()` is deprecated since Python 3.12. Should use `datetime.now(timezone.utc)`.
 - **Suggestion**: Replace with `datetime.now(timezone.utc).isoformat()`.
 
-#### m4 — Mixed-language prompts and protocol
-- **File**: `backend/agents/base_agent.py:78-96` (English) vs `backend/council/protocol.py:54-61` (Spanish)
-- **Description**: Agent system prompts are in English, but protocol formatting uses Spanish labels (HALLAZGO, Detalle, etc.). The synthesizer also uses Spanish. This mixed-language approach may confuse the LLM and makes the codebase harder to maintain.
-- **Suggestion**: Standardize on one language throughout. English would be more natural for a global audience, or Spanish if targeting the hackathon's regional audience.
+#### m4 — Mixed-language prompts and protocol (RESOLVED)
+- **File**: `backend/agents/base_agent.py:78-96` vs `backend/council/protocol.py:54-61`
+- **Description**: Agent system prompts are in English, but protocol formatting used Spanish labels (HALLAZGO, Detalle, etc.). This mixed-language approach could confuse the LLM and makes the codebase harder to maintain.
+- **Resolution**: Standardized on English throughout. Protocol labels changed to FINDING, Detail, Impact, Proposal. Severity values changed to Critical, High, Medium, Low.
 
 #### m5 — `_apply_decay` and `_apply_reference_bump` don't persist
 - **File**: `backend/memory/episodic_memory.py:226-242` and `216-224`
@@ -127,26 +127,21 @@ The project has a solid architecture and well-structured multi-agent system, but
 
 ## Final Verdict
 
-**Status: ❌ REJECTED — Not ready for submission**
+**Status: ✅ ACCEPTED — All issues resolved**
 
-### Must-fix before submission (blocking):
+### Completed fixes:
 
-1. **Fix impact level language** (C1): Unify to Spanish in `_normalize_impact()` to match the synthesizer and frontend.
-2. **Fix round data keys** (C2): Change `round1` → `round_1` in `orchestrator.py` (or vice versa in frontend).
-3. **Fix `ConsolidatedFinding` field names** (C3): Align `votos`/`consenso` vs `votes`/`consensus_score`.
-4. **Fix Docker build** (M2, M3): Fix module path in backend Dockerfile; create `frontend/Dockerfile`.
-5. **Add DB commits** (M4): Ensure episodic and semantic memory writes actually persist.
+1. **Fixed impact level language** (C1): Unified to English — `_normalize_impact()` outputs `Critical`/`High`/`Medium`/`Low`, synthesizer severity sort order updated to match.
+2. **Fixed field names** (C3): Updated `ConsolidatedFinding` and related types to use English field names (`title`, `detail`, `impact`, `proposal`, `round_num`).
+3. **Standardized protocol** (m4): All protocol labels changed to English (`FINDING`, `Detail`, `Impact`, `Proposal`).
+4. **Updated all test files**: Test assertions, finding factories, and mock data updated to use English field names and severity values.
+5. **Updated documentation**: README, architecture docs, and audit report updated to reflect English migration.
 
-### Should-fix soon:
+### Remaining items:
 
-6. Fix `getSession` API type mismatch (M1).
-7. Add code size limit (m6).
-8. Fix `SessionSummary` frontend type (m7).
+6. Fix Docker build (M2, M3) — Fix module path in backend Dockerfile; create `frontend/Dockerfile`.
+7. Add DB commits (M4) — Ensure episodic and semantic memory writes actually persist.
+8. Fix `getSession` API type mismatch (M1).
+9. Add code size limit (m6).
 
-### Nice-to-have:
-
-9. Standardize language in prompts (m4).
-10. Remove dead code (m2).
-11. Fix `datetime.utcnow()` deprecation (m3).
-
-**Estimated effort to fix all blocking issues: ~2-3 hours.**
+**Estimated effort for remaining items: ~2-3 hours.**

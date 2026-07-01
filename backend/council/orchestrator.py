@@ -1,11 +1,14 @@
-"""Council orchestrator — runs the 3-round debate and produces the final report.
+"""Council orchestrator — runs the 3-round debate + optional negotiation and produces the final report.
 
 Flow:
-  1. Round 1: All 5 agents analyse the code independently (parallel).
+  1. Round 1: All 6 agents analyse the code independently (parallel).
   2. Round 2: Each agent receives the findings from Round 1 and debates (parallel).
   3. Round 3: Each agent receives the debates from Round 2 and refines (parallel).
   4. Synthesis: Consolidates findings, counts votes, determines consensus.
-  5. Memory: Save episodic memory, check for semantic consolidation.
+  5. Round 4 (Negotiation, if needed): Agents with low-consensus findings debate
+     — each states their position, rebuts the other, and either converges or
+     agrees to disagree.  The transcript becomes part of the final report.
+  6. Memory: Save episodic memory, check for semantic consolidation.
 """
 
 from __future__ import annotations
@@ -15,7 +18,7 @@ import logging
 import random
 import uuid
 from datetime import datetime
-from typing import Any
+from typing import Any, AsyncGenerator
 
 from backend.agents.architecture_agent import ArchitectureAgent
 from backend.agents.performance_agent import PerformanceAgent
@@ -113,7 +116,7 @@ class CouncilOrchestrator:
                 code = self._build_multi_file_context(files)
             else:
                 file_context = self._build_multi_file_context(files)
-                code = file_context + "\n\n### Código adicional:\n\n" + code
+                code = file_context + "\n\n### Additional code:\n\n" + code
         else:
             round_data["files"] = [{"filename": "source.txt", "size": len(code), "language": "text"}]
 
@@ -124,7 +127,7 @@ class CouncilOrchestrator:
         if instruction:
             round_data["instruction"] = instruction
             # Prepend instruction to the code so all agents see it as a user directive
-            instruction_block = f"### Instrucciones del usuario:\n{instruction}\n\n### Código a revisar:\n\n"
+            instruction_block = f"### User instructions:\n{instruction}\n\n### Code to review:\n\n"
             code = instruction_block + code
             # Update context_preview too
             round_data["context_preview"] = code[:3000] + ("..." if len(code) > 3000 else "")
@@ -217,6 +220,23 @@ class CouncilOrchestrator:
         )
         round_data["report"] = report.model_dump()
 
+        # ── Round 4: Negotiation (low-consensus findings) ────
+        negotiation_transcript = await self._run_negotiation_round(
+            session_id=session_id,
+            code=code,
+            report_findings=report.findings,
+            all_rounds_findings=all_findings,
+        )
+        if negotiation_transcript:
+            round_data["round_4_negotiation"] = negotiation_transcript
+            logger.info(
+                "[%s] Round 4 negotiation complete: %d disagreements debated",
+                session_id,
+                len(negotiation_transcript),
+            )
+        else:
+            logger.info("[%s] No negotiation needed — all findings have strong consensus", session_id)
+
         # Update working memory
         self.working_memory.set(
             session_id,
@@ -234,6 +254,221 @@ class CouncilOrchestrator:
 
         logger.info("[%s] Council completed successfully", session_id)
         return report, session_id, round_data
+
+    # ──────────────────────────────────────────────
+    #  Streaming (SSE) variant
+    # ──────────────────────────────────────────────
+
+    async def stream_council(
+        self,
+        code: str,
+        session_id: str | None = None,
+        image_url: str | None = None,
+        files: list[FileContent] | None = None,
+        instruction: str | None = None,
+    ) -> AsyncGenerator[tuple[str, dict[str, Any]], None]:
+        """Async generator that yields ``(event_type, data)`` tuples for SSE streaming.
+
+        Mirrors :meth:`run_council` but yields progress events at each step so
+        callers can stream real-time updates to the frontend via Server-Sent Events.
+
+        Events yielded
+        --------------
+        * ``round_start``       — before each debate round
+        * ``agent_start``       — before calling a single agent
+        * ``agent_complete``    — after an agent returns findings
+        * ``agent_error``       — if an agent call fails
+        * ``round_complete``    — after all agents in a round finish
+        * ``synthesis_complete`` — after the synthesizer finishes
+        * ``negotiation_start``  — if there are low-consensus findings
+        * ``negotiation_complete`` — after negotiation finishes
+        * ``complete``          — final event with the full report and session ID
+        * ``error``             — if the entire council fails (terminal)
+        """
+        if not session_id:
+            session_id = f"ses-{uuid.uuid4().hex[:12]}"
+
+        # Build full code context from files if provided
+        if files:
+            if not code.strip():
+                code = self._build_multi_file_context(files)
+            else:
+                file_context = self._build_multi_file_context(files)
+                code = file_context + "\n\n### Additional code:\n\n" + code
+
+        # Prepend instruction if provided
+        if instruction:
+            instruction_block = f"### User instructions:\n{instruction}\n\n### Code to review:\n\n"
+            code = instruction_block + code
+
+        # Store in working memory
+        self.working_memory.set(session_id, {"code": code, "status": "in_progress"})
+
+        # Retrieve relevant semantic memory patterns
+        semantic_patterns = await self._retrieve_semantic_context(code)
+
+        all_findings: dict[int, dict[str, list[Finding]]] = {}
+        total_rounds = 3
+
+        try:
+            # ── Rounds 1-3 ──────────────────────────────────────────
+            for round_num in (1, 2, 3):
+                yield ("round_start", {"round": round_num, "total_rounds": total_rounds})
+                logger.info("[%s] Starting Round %d (stream)", session_id, round_num)
+
+                # Build context per agent (findings from other agents in previous round)
+                context_per_agent: dict[str, list[dict[str, Any]]] = {}
+                if round_num > 1 and (round_num - 1) in all_findings:
+                    prev_findings = all_findings[round_num - 1]
+                    for agent_name in self.agents:
+                        others_context: list[dict[str, Any]] = []
+                        for other_name, other_findings in prev_findings.items():
+                            if other_name != agent_name:
+                                for f in other_findings:
+                                    others_context.append(f.model_dump())
+                        context_per_agent[agent_name] = others_context
+                else:
+                    context_per_agent = {name: [] for name in self.agents}
+
+                # Add semantic context if available
+                code_with_context = code
+                if semantic_patterns:
+                    code_with_context = (
+                        "### Memory context (previous patterns):\n"
+                        + "\n".join(f"- {p}" for p in semantic_patterns)
+                        + "\n\n### Code to review:\n\n"
+                        + code
+                    )
+
+                # Launch all agents in parallel
+                tasks: dict[str, asyncio.Task[list[Finding]]] = {}
+                for name, agent in self.agents.items():
+                    yield ("agent_start", {"agent": name, "round": round_num})
+                    ctx = context_per_agent.get(name, [])
+                    tasks[name] = asyncio.create_task(
+                        self._analyze_with_retry(
+                            agent=agent,
+                            agent_name=name,
+                            round_num=round_num,
+                            code=code_with_context,
+                            context=ctx,
+                            image_url=image_url if name == "vision" else None,
+                        )
+                    )
+
+                # Collect results as each task completes
+                round_findings: dict[str, list[Finding]] = {}
+                for name, task in tasks.items():
+                    try:
+                        findings = await asyncio.wait_for(task, timeout=300.0)
+                        round_findings[name] = findings
+                        yield ("agent_complete", {
+                            "agent": name,
+                            "round": round_num,
+                            "findings_count": len(findings),
+                        })
+                    except asyncio.TimeoutError:
+                        logger.error(
+                            "[%s] Agent '%s' timed out in round %d",
+                            session_id, name, round_num,
+                        )
+                        round_findings[name] = []
+                        yield ("agent_error", {
+                            "agent": name,
+                            "round": round_num,
+                            "error": "Request timed out after 300 seconds",
+                        })
+                    except Exception as e:
+                        logger.exception(
+                            "[%s] Agent '%s' failed in round %d",
+                            session_id, name, round_num,
+                        )
+                        round_findings[name] = []
+                        yield ("agent_error", {
+                            "agent": name,
+                            "round": round_num,
+                            "error": str(e)[:300],
+                        })
+
+                all_findings[round_num] = round_findings
+                total_findings = sum(len(f) for f in round_findings.values())
+                yield ("round_complete", {
+                    "round": round_num,
+                    "total_findings": total_findings,
+                })
+                logger.info(
+                    "[%s] Round %d complete: %d findings (stream)",
+                    session_id, round_num, total_findings,
+                )
+
+            # ── Flatten findings for synthesis ──────────────────────
+            flat_by_round: dict[int, list[Finding]] = {}
+            for r in (1, 2, 3):
+                flat: list[Finding] = []
+                for agent_findings in all_findings.get(r, {}).values():
+                    flat.extend(agent_findings)
+                flat_by_round[r] = flat
+
+            # ── Synthesis ───────────────────────────────────────────
+            logger.info("[%s] Running synthesis (stream)", session_id)
+            report = await synthesize(
+                flat_by_round,
+                code_context=code[:2000],
+                session_id=session_id,
+            )
+            yield ("synthesis_complete", {
+                "consolidated_findings": len(report.findings),
+            })
+
+            # ── Round 4: Negotiation (low-consensus findings) ──────
+            disputed_count = sum(
+                1 for cf in report.findings
+                if cf.consensus_level in ("Low", "No consensus")
+            )
+            if disputed_count > 0:
+                yield ("negotiation_start", {"disputed_count": disputed_count})
+
+            negotiation_transcript = await self._run_negotiation_round(
+                session_id=session_id,
+                code=code,
+                report_findings=report.findings,
+                all_rounds_findings=all_findings,
+            )
+            if negotiation_transcript:
+                yield ("negotiation_complete", {
+                    "resolved": sum(
+                        1 for t in negotiation_transcript
+                        if t.get("resolved", False)
+                    ),
+                    "transcript": negotiation_transcript,
+                })
+
+            # Update working memory
+            self.working_memory.set(
+                session_id,
+                {"status": "completed", "report": report.model_dump()},
+            )
+
+            # Persist to episodic memory
+            await self._save_episodic(session_id, code, all_findings, report)
+
+            # Check for semantic consolidation
+            await self._check_consolidation(session_id)
+
+            logger.info("[%s] Council completed successfully (stream)", session_id)
+
+            # Final complete event with full report
+            yield ("complete", {
+                "session_id": session_id,
+                "report": report.model_dump(),
+            })
+
+        except Exception as e:
+            logger.exception("[%s] Council stream failed", session_id)
+            yield ("error", {
+                "message": "Council execution failed",
+                "detail": str(e)[:500],
+            })
 
     # ──────────────────────────────────────────────
     #  Internal: run a single round
@@ -304,9 +539,9 @@ class CouncilOrchestrator:
         code_with_context = code
         if semantic_context:
             code_with_context = (
-                "### Contexto de memoria (patrones previos):\n"
+                "### Memory context (previous patterns):\n"
                 + "\n".join(f"- {p}" for p in semantic_context)
-                + "\n\n### Código a revisar:\n\n"
+                + "\n\n### Code to review:\n\n"
                 + code
             )
 
@@ -328,7 +563,7 @@ class CouncilOrchestrator:
         results: dict[str, list[Finding]] = {}
         for name, task in tasks.items():
             try:
-                results[name] = await asyncio.wait_for(task, timeout=120.0)
+                results[name] = await asyncio.wait_for(task, timeout=300.0)
             except asyncio.TimeoutError:
                 logger.error("Agent '%s' timed out in round %d", name, round_num)
                 results[name] = []
@@ -337,6 +572,188 @@ class CouncilOrchestrator:
                 results[name] = []
 
         return results
+
+    # ──────────────────────────────────────────────
+    #  Round 4: Negotiation (dialogue for low-consensus findings)
+    # ──────────────────────────────────────────────
+
+    async def _run_negotiation_round(
+        self,
+        session_id: str,
+        code: str,
+        report_findings: list[Any],
+        all_rounds_findings: dict[int, Any],
+    ) -> list[dict[str, Any]]:
+        """Run a negotiation round for findings with low consensus.
+
+        For findings where consensus_level is "Low" or "No consensus",
+        the disagreeing agents are identified and each is asked to:
+          1. State their position with evidence
+          2. Rebut the opposing position
+          3. Either converge or state why they maintain their position
+
+        Returns a list of negotiation transcripts, one per disputed finding.
+        """
+        # Find low-consensus findings
+        disputed = [
+            cf for cf in report_findings
+            if getattr(cf, "consensus_level", "High") in ("Low", "No consensus")
+        ]
+
+        if not disputed:
+            return []
+
+        # Find which agents participated in each disputed finding's discussion
+        transcripts: list[dict[str, Any]] = []
+
+        for cf in disputed:
+            votes: dict[str, str] = getattr(cf, "votes", {})
+            voting_agents = list(votes.keys())
+
+            if len(voting_agents) < 2:
+                continue
+
+            # Group agents by severity position
+            position_groups: dict[str, list[str]] = {}
+            for agent_name, severity in votes.items():
+                position_groups.setdefault(severity, []).append(agent_name)
+
+            if len(position_groups) < 2:
+                continue  # all agree on severity, consensus issue is elsewhere
+
+            # Build the negotiation prompt with both positions
+            positions_text = "\n".join(
+                f"  - {', '.join(agents)} says severity is **{sev}**"
+                for sev, agents in position_groups.items()
+            )
+
+            # For each group, ask an agent to defend
+            debate_log: list[dict[str, str]] = []
+            for sev, agents in position_groups.items():
+                if not agents:
+                    continue
+                chosen = agents[0]
+                try:
+                    rebuttal = await self._call_negotiation(
+                        agent_name=chosen,
+                        agent=self.agents.get(chosen),
+                        finding_title=cf.title,
+                        code=code,
+                        positions=positions_text,
+                        my_severity=sev,
+                        my_votes=votes,
+                    )
+                    debate_log.append({
+                        "agent": chosen,
+                        "severity": sev,
+                        "argument": rebuttal[:500],  # truncate for storage
+                    })
+                except Exception:
+                    logger.exception(
+                        "Negotiation failed for agent '%s' on finding '%s'",
+                        chosen, cf.title[:50],
+                    )
+
+            if debate_log:
+                transcript = {
+                    "finding_title": cf.title,
+                    "impact": cf.impact,
+                    "disputed_severities": {s: a for s, a in position_groups.items()},
+                    "debate": debate_log,
+                    "resolved": len(debate_log) >= 2 and any(
+                        "converge" in d.get("argument", "").lower()
+                        or "agree" in d.get("argument", "").lower()
+                        for d in debate_log
+                    ),
+                }
+
+                # If a convergence is detected, update can be recorded
+                if transcript["resolved"]:
+                    final_severity = self._resolve_negotiation(debate_log)
+                    transcript["resolved_severity"] = final_severity
+                else:
+                    transcript["resolved_severity"] = None
+
+                transcripts.append(transcript)
+
+        return transcripts
+
+    async def _call_negotiation(
+        self,
+        agent_name: str,
+        agent,
+        finding_title: str,
+        code: str,
+        positions: str,
+        my_severity: str,
+        my_votes: dict[str, str],
+    ) -> str:
+        """Call a single agent to argue its position in a negotiation."""
+        if agent is None:
+            return "Agent unavailable"
+
+        from backend.agents.base_agent import BaseAgent
+        if not isinstance(agent, BaseAgent):
+            return "Agent type not supported"
+
+        prompt = (
+            f"### Negotiation Round — Disputed Finding\n\n"
+            f"**Finding:** {finding_title}\n\n"
+            f"**Your position:** {my_severity}\n\n"
+            f"**Current positions:\n{positions}\n\n"
+            f"### Code being reviewed:\n```\n{code[:2000]}\n```\n\n"
+            "Please do the following:\n"
+            "1. **STATE YOUR POSITION**: Defend why this finding should be "
+            f"severity **{my_severity}** with specific evidence from the code.\n"
+            "2. **REBUT OPPOSITION**: Address the opposing agents' arguments. "
+            "Explain why their severity assessment is incorrect.\n"
+            "3. **CONVERGE OR MAINTAIN**: Either adjust your position (if the "
+            "opposing evidence is convincing) OR maintain your original position "
+            "with your strongest justification.\n\n"
+            "Respond in this format:\n"
+            "POSITION: <your stance>\n"
+            "EVIDENCE: <code evidence>\n"
+            "REBUTTAL: <counter-argument>\n"
+            "CONCLUSION: <Converge on X | Maintain Y>\n"
+        )
+
+        user_prompt = (
+            f"### Negotiation request for {agent_name}\n\n{prompt}"
+        )
+
+        response = await agent._call_llm(user_prompt)
+        return response or "No response"
+
+    @staticmethod
+    def _resolve_negotiation(
+        debate_log: list[dict[str, str]],
+    ) -> str | None:
+        """Resolve negotiation outcome based on debate log.
+
+        If agents converged, return the agreed severity.
+        If not, return the most common position.
+        """
+        from collections import Counter
+
+        conclusions = []
+        for entry in debate_log:
+            arg = entry.get("argument", "")
+            # Look for convergence signal
+            if "converge on" in arg.lower():
+                # Extract the target severity
+                for sev in ("Critical", "High", "Medium", "Low"):
+                    if sev.lower() in arg.lower():
+                        conclusions.append(sev)
+                        break
+            else:
+                conclusions.append(entry.get("severity", "Medium"))
+
+        if not conclusions:
+            return None
+
+        # Majority vote
+        counter = Counter(conclusions)
+        return counter.most_common(1)[0][0]
 
     # ──────────────────────────────────────────────
     #  Memory operations
@@ -368,7 +785,7 @@ class CouncilOrchestrator:
                 for agent_name, findings_list in agent_dict.items():
                     for f in findings_list:
                         d = f.model_dump()
-                        d["ronda"] = round_num
+                        d["round_num"] = round_num
                         flat.append(d)
 
             async with async_session_factory() as session:

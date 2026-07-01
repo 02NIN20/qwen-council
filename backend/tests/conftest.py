@@ -72,39 +72,39 @@ SAMPLE_ROUND3_TEXT = (
 
 def make_finding(
     agent: str = "security",
-    hallazgo: str = "Test finding",
-    detalle: str = "Test detail with evidence",
-    impacto: str = "Medium",
-    propuesta: str = "Test fix proposal",
-    ronda: int = 1,
+    title: str = "Test finding",
+    detail: str = "Test detail with evidence",
+    impact: str = "Medium",
+    proposal: str = "Test fix proposal",
+    round_num: int = 1,
 ) -> Finding:
     """Create a Finding with sensible defaults."""
     return Finding(
         agent=agent,
-        hallazgo=hallazgo,
-        detalle=detalle,
-        impacto=impacto,
-        propuesta=propuesta,
-        ronda=ronda,
+        title=title,
+        detail=detail,
+        impact=impact,
+        proposal=proposal,
+        round_num=round_num,
     )
 
 
 def make_finding_dict(
     agent: str = "security",
-    hallazgo: str = "Test finding",
-    detalle: str = "Test detail",
-    impacto: str = "Medium",
-    propuesta: str = "Test fix",
-    ronda: int = 1,
+    title: str = "Test finding",
+    detail: str = "Test detail",
+    impact: str = "Medium",
+    proposal: str = "Test fix",
+    round_num: int = 1,
 ) -> dict:
     """Create a finding dict (as stored in episodic memory)."""
     return {
         "agent": agent,
-        "hallazgo": hallazgo,
-        "detalle": detalle,
-        "impacto": impacto,
-        "propuesta": propuesta,
-        "ronda": ronda,
+        "title": title,
+        "detail": detail,
+        "impact": impact,
+        "proposal": proposal,
+        "round_num": round_num,
     }
 
 
@@ -225,21 +225,21 @@ def sample_findings_round1():
         "security": [
             make_finding(
                 agent="security",
-                hallazgo="SQL injection via string interpolation",
-                detalle="Line 6: unsanitized f-string in query",
-                impacto="Critical",
-                propuesta="Use parameterised queries",
-                ronda=1,
+                title="SQL injection via string interpolation",
+                detail="Line 6: unsanitized f-string in query",
+                impact="Critical",
+                proposal="Use parameterised queries",
+                round_num=1,
             )
         ],
         "architecture": [
             make_finding(
                 agent="architecture",
-                hallazgo="No separation of concerns",
-                detalle="Database access mixed with business logic in get_user",
-                impacto="High",
-                propuesta="Extract DB layer to repository pattern",
-                ronda=1,
+                title="No separation of concerns",
+                detail="Database access mixed with business logic in get_user",
+                impact="High",
+                proposal="Extract DB layer to repository pattern",
+                round_num=1,
             )
         ],
         "quality": [],
@@ -255,21 +255,21 @@ def sample_findings_round2():
         "security": [
             make_finding(
                 agent="security",
-                hallazgo="Agreeing with [architecture], SQL injection is critical",
-                detalle="Parameter validation also needed",
-                impacto="Critical",
-                propuesta="Use parameterised queries and input validation",
-                ronda=2,
+                title="Agreeing with [architecture], SQL injection is critical",
+                detail="Parameter validation also needed",
+                impact="Critical",
+                proposal="Use parameterised queries and input validation",
+                round_num=2,
             )
         ],
         "architecture": [
             make_finding(
                 agent="architecture",
-                hallazgo="Building on [security], use an ORM layer",
-                detalle="SQLAlchemy would prevent raw SQL injection",
-                impacto="High",
-                propuesta="Replace raw sqlite3 with SQLAlchemy ORM",
-                ronda=2,
+                title="Building on [security], use an ORM layer",
+                detail="SQLAlchemy would prevent raw SQL injection",
+                impact="High",
+                proposal="Replace raw sqlite3 with SQLAlchemy ORM",
+                round_num=2,
             )
         ],
         "quality": [],
@@ -285,21 +285,21 @@ def sample_findings_round3():
         "security": [
             make_finding(
                 agent="security",
-                hallazgo="KEEP: SQL injection via string interpolation",
-                detalle="Confirmed by all agents",
-                impacto="Critical",
-                propuesta="Use parameterised queries",
-                ronda=3,
+                title="KEEP: SQL injection via string interpolation",
+                detail="Confirmed by all agents",
+                impact="Critical",
+                proposal="Use parameterised queries",
+                round_num=3,
             )
         ],
         "architecture": [
             make_finding(
                 agent="architecture",
-                hallazgo="MODIFY: Use SQLAlchemy ORM instead of raw sqlite3",
-                detalle="Addresses both security and architecture concerns",
-                impacto="High",
-                propuesta="Migrate to SQLAlchemy ORM",
-                ronda=3,
+                title="MODIFY: Use SQLAlchemy ORM instead of raw sqlite3",
+                detail="Addresses both security and architecture concerns",
+                impact="High",
+                proposal="Migrate to SQLAlchemy ORM",
+                round_num=3,
             )
         ],
         "quality": [],

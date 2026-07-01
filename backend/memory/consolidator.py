@@ -73,11 +73,11 @@ class Consolidator:
                     ses.session_id,
                 )
 
-        # 3. Cluster by hallazgo text
-        hallazgos = [
-            f.get("hallazgo", "") for f in all_findings if f.get("hallazgo")
+        # 3. Cluster by title text
+        titles = [
+            f.get("title", "") or f.get("hallazgo", "") for f in all_findings if f.get("title") or f.get("hallazgo")
         ]
-        counter = Counter(hallazgos)
+        counter = Counter(titles)
 
         # 4. Promote patterns that appear >= threshold
         promoted_count = 0
@@ -126,7 +126,8 @@ class Consolidator:
         # Find which agents produced similar findings
         agent_votes: Counter = Counter()
         for f in all_findings:
-            if f.get("hallazgo", "") == pattern and f.get("agent"):
+            f_title = f.get("title", "") or f.get("hallazgo", "")
+            if f_title == pattern and f.get("agent"):
                 agent_votes[f["agent"]] += 1
 
         if agent_votes:
@@ -134,15 +135,15 @@ class Consolidator:
 
         # Fallback keyword-based categorisation
         pattern_lower = pattern.lower()
-        if any(w in pattern_lower for w in ("sql", "xss", "inyección", "secreto", "auth", "owasp")):
+        if any(w in pattern_lower for w in ("sql", "xss", "injection", "secret", "auth", "owasp")):
             return "security"
-        if any(w in pattern_lower for w in ("solid", "acoplamiento", "arquitectura", "escalabilidad")):
+        if any(w in pattern_lower for w in ("solid", "coupling", "architecture", "scalability")):
             return "architecture"
-        if any(w in pattern_lower for w in ("test", "complejidad", "estilo", "código muerto")):
+        if any(w in pattern_lower for w in ("test", "complexity", "style", "dead code")):
             return "quality"
-        if any(w in pattern_lower for w in ("n+1", "caché", "rendimiento", "lento", "bucle")):
+        if any(w in pattern_lower for w in ("n+1", "cache", "performance", "slow", "loop")):
             return "performance"
-        if any(w in pattern_lower for w in ("accesibilidad", "a11y", "i18n", "contraste", "teclado")):
+        if any(w in pattern_lower for w in ("accessibility", "a11y", "i18n", "contrast", "keyboard")):
             return "ux"
 
         return "general"

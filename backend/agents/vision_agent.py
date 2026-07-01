@@ -48,7 +48,7 @@ class VisionAgent(BaseAgent):
             "**Inverted Pyramid** format. Each finding must have this exact structure:\n\n"
             "FINDING: <one-line conclusion>\n"
             "··· Detail: <concrete evidence: file, line, code fragment or visual element>\n"
-            "··· Impact: <Crítico | Alto | Medio | Bajo>\n"
+            "··· Impact: <Critical | High | Medium | Low>\n"
             "··· Proposal: <suggested corrective action>\n\n"
             "Rules:\n"
             "- Do NOT include any text outside the specified format.\n"
@@ -56,8 +56,8 @@ class VisionAgent(BaseAgent):
             "- Separate each finding with a blank line.\n"
             "- Be specific: mention actual code lines, visual elements, or UI components.\n"
             "- For visual issues, describe what you see and why it is problematic.\n"
-            "- Use the correct impact level: Crítico (severe problem), "
-            "Alto (significant issue), Medio (important improvement), Bajo (minor suggestion)."
+            "- Use the correct impact level: Critical (severe problem), "
+            "High (significant issue), Medium (important improvement), Low (minor suggestion)."
         )
 
     async def analyze(
