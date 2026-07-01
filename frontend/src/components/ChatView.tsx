@@ -82,7 +82,7 @@ export default function ChatView({ messages, onSubmit, onChatSubmit, disabled, s
   }, [sessionId, messages]);
 
   return (
-    <div className="flex flex-col h-full">
+    <div className="flex flex-col flex-1 overflow-hidden">
       {/* Messages area */}
       <div
         ref={containerRef}
