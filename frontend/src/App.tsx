@@ -50,24 +50,38 @@ export default function App() {
       const isChat = Array.isArray(reportData) && reportData[0]?.question !== undefined;
 
       if (isChat) {
-        // ── Chat session ────────────────────────────────────────
-        const chatData = reportData[0];
-        const userMsg: ChatMessageData = {
-          id: uid(),
-          role: 'user',
-          content: chatData.question || session.code.slice(0, 100),
-          code: '',
-          timestamp: Date.now(),
-        };
-        const answerMsg: ChatMessageData = {
-          id: uid(),
-          role: 'answer',
-          text: chatData.response || 'No response stored',
-          agentContributions: chatData.agent_contributions || [],
-          sessionId: session.id,
-          timestamp: Date.now(),
-        };
-        setMessages([userMsg, answerMsg]);
+        // ── Chat session — load ALL conversation turns ──────────
+        const allMessages: ChatMessageData[] = [];
+        for (const entry of reportData) {
+          const question = entry.question || '';
+          const response = entry.response || '';
+          if (question) {
+            allMessages.push({
+              id: uid(),
+              role: 'user',
+              content: question,
+              code: '',
+              timestamp: Date.now(),
+            });
+          }
+          if (response) {
+            allMessages.push({
+              id: uid(),
+              role: 'answer',
+              text: response,
+              agentContributions: entry.agent_contributions || [],
+              sessionId: session.id,
+              timestamp: Date.now(),
+            });
+          }
+        }
+        setMessages(allMessages.length > 0 ? allMessages : [
+          {
+            id: uid(),
+            role: 'error',
+            text: 'No messages in this session',
+          },
+        ]);
       } else {
         // ── Review session ──────────────────────────────────────
         const userMsg: ChatMessageData = {

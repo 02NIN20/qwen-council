@@ -447,7 +447,7 @@ async def chat_general(
     from openai import AsyncOpenAI
 
     try:
-        # ── Follow-up mode (session + context) ──────────────────────
+        # ── Follow-up mode (code review context only) ────────────────
         if payload.session_id and payload.context:
             client = AsyncOpenAI(
                 api_key=settings.qwen_api_key,
@@ -478,18 +478,53 @@ async def chat_general(
                 agent_contributions=[],
             )
 
+        # ── Load previous conversation if session_id exists ──────────
+        conversation_history = ""  # previous Q&A pairs as context
+        existing_findings: list[dict] = []
+
+        if payload.session_id:
+            try:
+                from backend.memory.episodic_memory import EpisodicMemoryManager
+                mgr = EpisodicMemoryManager(db)
+                prev = await mgr.get(payload.session_id)
+                if prev:
+                    raw = prev.findings_json
+                    if isinstance(raw, str):
+                        raw = json.loads(raw)
+                    if isinstance(raw, list):
+                        existing_findings = raw
+                        # Build conversation history from previous turns
+                        parts = []
+                        for entry in existing_findings:
+                            q = entry.get("question", "")
+                            r = entry.get("response", "")
+                            if q:
+                                parts.append(f"User: {q}")
+                            if r:
+                                parts.append(f"Assistant: {r}")
+                        conversation_history = "\n".join(parts)
+            except Exception:
+                logger.warning("Could not load previous chat context — continuing fresh")
+
         # ── Route to the right agents based on question category ──
         category = _classify_question(payload.message)
         selected_agents = _route_question(category)
 
         session_id = payload.session_id or f"chat-{uuid.uuid4().hex[:8]}"
 
+        # Build agent context: conversation history + any explicit context
+        agent_context = ""
+        if conversation_history:
+            agent_context += f"### Previous conversation:\n{conversation_history}\n\n"
+        if payload.context:
+            agent_context += f"### Additional context:\n{payload.context}\n"
+
         async def ask_agent(name: str, agent: object) -> dict:
             """Call a single agent's answer_question and return its contribution."""
             try:
                 answer = await agent.answer_question(  # type: ignore[union-attr]
                     question=payload.message,
-                    context=payload.context,
+                    context=agent_context if agent_context else None,
                 )
                 return {
                     "agent": name,
@@ -510,29 +545,31 @@ async def chat_general(
         # Synthesise final answer — merge all agents into one flowing response
         final = await _synthesize_chat(payload.message, contributions_data)
 
-        # ── Persist to episodic memory so chat appears in sidebar ──
+        # ── Persist to episodic memory (append to existing) ──────────
         try:
             from backend.memory.episodic_memory import EpisodicMemoryManager
 
+            new_entry = {
+                "question": payload.message,
+                "response": final,
+                "agent_contributions": [
+                    {
+                        "agent": c["agent"],
+                        "role_description": c["role_description"],
+                        "answer": c["answer"],
+                    }
+                    for c in contributions_data
+                ],
+            }
+
             mgr = EpisodicMemoryManager(db)
+            # Keep the first question as `code` for sidebar preview
+            first_question = existing_findings[0]["question"] if existing_findings else payload.message
             await mgr.save(
                 session_id=session_id,
-                code=payload.message,  # store question as "code" for preview
-                findings=[
-                    {
-                        "question": payload.message,
-                        "response": final,
-                        "agent_contributions": [
-                            {
-                                "agent": c["agent"],
-                                "role_description": c["role_description"],
-                                "answer": c["answer"],
-                            }
-                            for c in contributions_data
-                        ],
-                    }
-                ],
-                score=0.5,  # neutral score so it shows up in listing
+                code=first_question,
+                findings=[*existing_findings, new_entry],
+                score=0.5,
             )
         except Exception:
             logger.warning("Failed to persist chat session to DB — continuing without persistence")
