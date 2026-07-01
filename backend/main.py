@@ -60,7 +60,8 @@ async def lifespan(app: FastAPI):
     logger.info("Starting Qwen Council API")
     # Log API key status (safely — never log the actual key)
     key_status = "SET" if settings.qwen_api_key else "NOT SET — agents will return NO_FINDINGS!"
-    logger.info("Qwen API key: %s", key_status)
+    key_preview = (settings.qwen_api_key[:8] + "..." + settings.qwen_api_key[-4:]) if settings.qwen_api_key else "N/A"
+    logger.info("Qwen API key: %s (len=%d, preview=%s)", key_status, len(settings.qwen_api_key), key_preview)
     logger.info("Qwen model: %s", settings.qwen_model)
     logger.info("Qwen base URL: %s", settings.qwen_base_url)
     logger.info("Database URL: %s", settings.database_url.replace(settings.database_url.split(":")[2].split("@")[0], "****") if "@" in settings.database_url else settings.database_url)

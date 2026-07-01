@@ -18,6 +18,14 @@ class Settings(BaseSettings):
     qwen_embedding_model: str = "text-embedding-v3"
     qwen_timeout_seconds: int = 120
 
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        # Defensive: strip CRLF carriage returns that sneak in when .env
+        # has Windows line endings and is sourced by Docker/deploy scripts.
+        self.qwen_api_key = self.qwen_api_key.strip()
+        self.qwen_base_url = self.qwen_base_url.strip()
+        self.qwen_model = self.qwen_model.strip()
+
     # ── Database ────────────────────────────────────────────────────
     database_url: str = "postgresql+asyncpg://postgres:postgres@localhost:5432/qwen_council"
     database_echo: bool = False

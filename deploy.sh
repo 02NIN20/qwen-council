@@ -45,6 +45,12 @@ if [[ ! -f .env ]]; then
     exit 1
 fi
 
+# Strip Windows CRLF from .env if present, then source
+if grep -rl $'\r' .env &>/dev/null; then
+    log_warn ".env contains Windows CRLF line endings — stripping carriage returns"
+    sed -i 's/\r$//' .env
+fi
+
 # Source .env to verify required variables
 set -a
 source .env
@@ -150,10 +156,19 @@ TEST_RESULT=$(curl -sf -X POST http://localhost:80/api/review \
     -d '{"code": "def hello():\n    return 1 + 1"}' 2>/dev/null || echo "")
 
 if echo "$TEST_RESULT" | python3 -c "import sys,json; d=json.load(sys.stdin); exit(0 if d.get('session_id') else 1)" 2>/dev/null; then
-    log_ok "Smoke test passed — council is working"
+    # Check if findings are non-empty (API key working correctly)
+    FINDING_COUNT=$(echo "$TEST_RESULT" | python3 -c "import sys,json; d=json.load(sys.stdin); print(len(d.get('report',{}).get('findings',[])))" 2>/dev/null)
+    if [[ "$FINDING_COUNT" -gt 0 ]]; then
+        log_ok "Smoke test passed — $FINDING_COUNT findings returned (API key working)"
+    else
+        log_warn "Smoke test passed (session_id returned) but 0 findings — API key may not be reaching the container"
+        log_info "Check backend logs:  docker compose logs --tail=30 backend"
+    fi
 else
     log_warn "Smoke test failed (expected if PostgreSQL just started)"
     log_info "The DB container may still be initializing. Wait a moment and try again."
+    log_info "Backend logs:"
+    docker compose logs --tail=20 backend 2>/dev/null || true
 fi
 
 echo ""
