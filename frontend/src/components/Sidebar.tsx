@@ -68,11 +68,20 @@ export default function Sidebar({ onNewChat, onSelectSession, activeSessionId, c
         </button>
       </div>
 
-      {/* New Chat button */}
-      <div className="p-2">
+      {/* New buttons */}
+      <div className="p-2 flex flex-col gap-1.5">
         <button
           onClick={onNewChat}
-          className="w-full flex items-center justify-center gap-2 px-3 py-2 border border-retro-border text-xs text-retro-cyan hover:bg-retro-bg transition-colors font-bold uppercase tracking-wider"
+          className="flex items-center justify-center gap-2 px-3 py-2 border border-retro-border text-xs text-retro-cyan hover:bg-retro-bg transition-colors font-bold uppercase tracking-wider"
+        >
+          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+          </svg>
+          New Chat
+        </button>
+        <button
+          onClick={onNewChat}
+          className="flex items-center justify-center gap-2 px-3 py-2 border border-retro-border text-xs text-gray-500 hover:text-retro-cyan hover:bg-retro-bg transition-colors uppercase tracking-wider"
         >
           <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
@@ -101,8 +110,8 @@ export default function Sidebar({ onNewChat, onSelectSession, activeSessionId, c
             onClick={() => onSelectSession(session.id)}
           >
             {/* Type indicator */}
-            <span className={`mt-0.5 text-[10px] font-mono flex-shrink-0 ${isChat ? 'text-retro-cyan' : 'text-gray-700'}`}>
-              {isChat ? '💬' : '📄'}
+            <span className={`mt-0.5 text-[11px] font-mono flex-shrink-0 ${isChat ? 'text-retro-cyan' : 'text-gray-600'}`}>
+              {isChat ? '[C]' : '[R]'}
             </span>
             {/* Session info */}
             <div className="flex-1 min-w-0">

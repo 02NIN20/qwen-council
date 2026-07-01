@@ -61,7 +61,8 @@ export interface FileContent {
   language?: string;
 }
 
-export type AgentId = 'security' | 'architecture' | 'quality' | 'performance' | 'ux' | 'vision';
+export type AgentId = 'security' | 'architecture' | 'quality' | 'performance' | 'ux' | 'vision'
+  | 'scientist' | 'technologist' | 'philosopher' | 'historian' | 'artist' | 'psychologist' | 'strategist' | 'generalist';
 
 export type AgentStatus = 'waiting' | 'analyzing' | 'complete' | 'error';
 
@@ -115,6 +116,63 @@ export const AGENTS: AgentInfo[] = [
     icon: 'V',
     color: '#EC4899',
     specialty: 'Design, Visual Consistency, UI',
+  },
+  // ── General Chat Personality Agents ──
+  {
+    id: 'scientist',
+    name: 'Scientist',
+    icon: 'S',
+    color: '#00BFFF',
+    specialty: 'Feynman — explains complex simply',
+  },
+  {
+    id: 'technologist',
+    name: 'Technologist',
+    icon: 'T',
+    color: '#FF6B35',
+    specialty: 'Torvalds — direct, no-BS technical',
+  },
+  {
+    id: 'philosopher',
+    name: 'Philosopher',
+    icon: 'P',
+    color: '#E6A8D7',
+    specialty: 'Socrates — questions everything',
+  },
+  {
+    id: 'historian',
+    name: 'Historian',
+    icon: 'H',
+    color: '#C9B16E',
+    specialty: 'Harari — macro view across time',
+  },
+  {
+    id: 'artist',
+    name: 'Artist',
+    icon: 'A',
+    color: '#FF6B9D',
+    specialty: 'Miyazaki — imaginative, humanistic',
+  },
+  {
+    id: 'psychologist',
+    name: 'Psychologist',
+    icon: 'Y',
+    color: '#9B59B6',
+    specialty: 'Jung — depth psychology, archetypes',
+  },
+  {
+    id: 'strategist',
+    name: 'Strategist',
+    icon: 'W',
+    color: '#2ECC71',
+    specialty: 'Sun Tzu — strategic, sees moves ahead',
+  },
+  {
+    id: 'generalist',
+    name: 'Generalist',
+    icon: 'G',
+    color: '#F1C40F',
+    specialty: 'Franklin — practical wisdom with wit',
   },
 ];
 
