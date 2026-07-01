@@ -171,12 +171,8 @@ orchestrator = CouncilOrchestrator()
 
 router = APIRouter(prefix="/api/v1")
 
-# Register router with the app (versioned API)
-app.include_router(router)
-
-# Also register under /api for backward compatibility (frontend, CLI, etc.)
+# Routers will be registered at the end of the file after all endpoints are defined
 legacy_router = APIRouter(prefix="/api")
-app.include_router(legacy_router)
 
 
 @router.post("/review", response_model=ReviewResponse, tags=["Code Review"])
@@ -941,3 +937,8 @@ async def health_check():
     except Exception:
         pass
     return HealthResponse(status="ok", version="1.0.0", db_connected=db_ok)
+
+
+# Register routers with the app after all endpoints are defined
+app.include_router(router)
+app.include_router(legacy_router)
