@@ -295,17 +295,21 @@ def _consolidate_cluster(
     for f in cluster:
         votes[f.agent] = f.impact
 
-    # Calculate consensus
-    # We have 6 agents now (including vision)
+    # Calculate consensus based on SEVERITY AGREEMENT, not participation
+    # If 6 agents all vote but with 3 different severities, that's LOW consensus
     total_agents = 6
-    voting_agents = len(votes)
-    consensus_score = voting_agents / total_agents
+    severity_counts = Counter(votes.values())
+    # The most common severity and how many agents chose it
+    most_common_count = severity_counts.most_common(1)[0][1] if severity_counts else 0
+    # Agreement ratio = agents who agree on top severity / total agents
+    agreement_ratio = most_common_count / total_agents
+    consensus_score = agreement_ratio
 
-    if consensus_score >= 0.8:
+    if agreement_ratio >= 0.8:
         consensus_level = "High"
-    elif consensus_score >= 0.5:
+    elif agreement_ratio >= 0.5:
         consensus_level = "Medium"
-    elif consensus_score >= 0.2:
+    elif agreement_ratio >= 0.3:
         consensus_level = "Low"
     else:
         consensus_level = "No consensus"

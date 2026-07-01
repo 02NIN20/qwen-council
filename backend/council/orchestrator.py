@@ -423,7 +423,7 @@ class CouncilOrchestrator:
             # ── Round 4: Negotiation (low-consensus findings) ──────
             disputed_count = sum(
                 1 for cf in report.findings
-                if cf.consensus_level in ("Low", "No consensus")
+                if cf.consensus_level in ("Medium", "Low", "No consensus")
             )
             if disputed_count > 0:
                 yield ("negotiation_start", {"disputed_count": disputed_count})
@@ -586,7 +586,7 @@ class CouncilOrchestrator:
     ) -> list[dict[str, Any]]:
         """Run a negotiation round for findings with low consensus.
 
-        For findings where consensus_level is "Low" or "No consensus",
+        For findings where consensus_level is "Medium", "Low", or "No consensus",
         the disagreeing agents are identified and each is asked to:
           1. State their position with evidence
           2. Rebut the opposing position
@@ -597,7 +597,7 @@ class CouncilOrchestrator:
         # Find low-consensus findings
         disputed = [
             cf for cf in report_findings
-            if getattr(cf, "consensus_level", "High") in ("Low", "No consensus")
+            if getattr(cf, "consensus_level", "High") in ("Medium", "Low", "No consensus")
         ]
 
         if not disputed:
