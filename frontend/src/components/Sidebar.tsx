@@ -87,24 +87,35 @@ export default function Sidebar({ onNewChat, onSelectSession, activeSessionId, c
         {!loading && sessions.length === 0 && (
           <p className="text-[10px] text-gray-700 text-center py-4">No sessions yet</p>
         )}
-        {sessions.map((session) => (
+        {sessions.map((session) => {
+          const isChat = session.id.startsWith('chat-');
+          const isActive = activeSessionId === session.id;
+          return (
           <div
             key={session.id}
             className={`group flex items-start gap-1 px-2 py-2 text-xs transition-colors border cursor-pointer ${
-              activeSessionId === session.id
+              isActive
                 ? 'bg-retro-bg border-retro-cyan text-gray-200'
                 : 'bg-transparent border-transparent text-gray-500 hover:bg-retro-bg hover:border-retro-border hover:text-gray-300'
             }`}
             onClick={() => onSelectSession(session.id)}
           >
+            {/* Type indicator */}
+            <span className={`mt-0.5 text-[10px] font-mono flex-shrink-0 ${isChat ? 'text-retro-cyan' : 'text-gray-700'}`}>
+              {isChat ? '💬' : '📄'}
+            </span>
             {/* Session info */}
             <div className="flex-1 min-w-0">
-              <p className="font-bold truncate">
-                {activeSessionId === session.id ? '> ' : ''}{session.code_preview.slice(0, 40)}
+              <p className={`font-bold truncate ${isActive ? '' : ''}`}>
+                {isActive ? '> ' : ''}{session.code_preview.slice(0, 40)}
               </p>
               <div className="flex items-center gap-2 mt-1">
                 <span className="text-[10px] text-gray-600">{session.created_at?.slice(0, 10) || ''}</span>
-                <span className="text-[10px] text-gray-600">{session.finding_count} findings</span>
+                {isChat ? (
+                  <span className="text-[10px] text-retro-cyan/70">Chat</span>
+                ) : (
+                  <span className="text-[10px] text-gray-600">{session.finding_count} findings</span>
+                )}
               </div>
             </div>
             {/* Delete button — visible on hover */}
@@ -119,7 +130,8 @@ export default function Sidebar({ onNewChat, onSelectSession, activeSessionId, c
               </svg>
             </button>
           </div>
-        ))}
+          );
+        })}
       </div>
     </div>
   );
