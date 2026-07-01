@@ -134,8 +134,16 @@ orchestrator = CouncilOrchestrator()
 
 router = APIRouter(prefix="/api/v1")
 
+# Register router with the app (versioned API)
+app.include_router(router)
+
+# Also register under /api for backward compatibility (frontend, CLI, etc.)
+legacy_router = APIRouter(prefix="/api")
+app.include_router(legacy_router)
+
 
 @router.post("/review", response_model=ReviewResponse, tags=["Code Review"])
+@legacy_router.post("/review", response_model=ReviewResponse, include_in_schema=False)
 async def review_code(payload: ReviewRequest):
     """Execute the council on the provided source code.
 
@@ -164,6 +172,7 @@ async def review_code(payload: ReviewRequest):
 
 
 @router.post("/review/stream", tags=["Code Review"])
+@legacy_router.post("/review/stream", include_in_schema=False)
 async def review_code_stream(payload: ReviewRequest):
     """Stream council progress via Server-Sent Events.
 
@@ -503,6 +512,7 @@ async def _synthesize_chat(
 
 
 @router.post("/chat", response_model=ChatResponse, tags=["Chat"])
+@legacy_router.post("/chat", response_model=ChatResponse, include_in_schema=False)
 async def chat_general(
     payload: ChatRequest,
     db: AsyncSession = Depends(get_session),
@@ -659,6 +669,7 @@ async def chat_general(
 
 
 @router.post("/chat/stream", tags=["Chat"])
+@legacy_router.post("/chat/stream", include_in_schema=False)
 async def chat_stream(payload: ChatRequest):
     """Stream multi-agent chat responses via Server-Sent Events.
 
@@ -766,6 +777,7 @@ async def chat_stream(payload: ChatRequest):
 
 
 @router.get("/sessions", response_model=list[SessionSummary], tags=["Sessions"])
+@legacy_router.get("/sessions", response_model=list[SessionSummary], include_in_schema=False)
 async def list_sessions(
     limit: int = 20,
     db: AsyncSession = Depends(get_session),
@@ -799,6 +811,7 @@ async def list_sessions(
 
 
 @router.get("/sessions/{session_id}", response_model=SessionDetail, tags=["Sessions"])
+@legacy_router.get("/sessions/{session_id}", response_model=SessionDetail, include_in_schema=False)
 async def get_session_detail(
     session_id: str,
     db: AsyncSession = Depends(get_session),
@@ -831,6 +844,7 @@ async def get_session_detail(
 
 
 @router.delete("/sessions/{session_id}", tags=["Sessions"])
+@legacy_router.delete("/sessions/{session_id}", include_in_schema=False)
 async def delete_session(
     session_id: str,
     db: AsyncSession = Depends(get_session),
@@ -849,7 +863,8 @@ async def delete_session(
         raise HTTPException(status_code=500, detail="Failed to delete session")
 
 
-@app.get("/api/memory/patterns", response_model=list[MemoryPattern], tags=["Memory"])
+@router.get("/memory/patterns", response_model=list[MemoryPattern], tags=["Memory"])
+@legacy_router.get("/memory/patterns", response_model=list[MemoryPattern], include_in_schema=False)
 async def list_memory_patterns(
     category: str | None = None,
     db: AsyncSession = Depends(get_session),
@@ -878,7 +893,8 @@ async def list_memory_patterns(
         )
 
 
-@app.get("/api/health", response_model=HealthResponse, tags=["Health"])
+@router.get("/health", response_model=HealthResponse, tags=["Health"])
+@legacy_router.get("/health", response_model=HealthResponse, include_in_schema=False)
 async def health_check():
     """Health check endpoint."""
     db_ok = False
