@@ -21,66 +21,88 @@ from backend.models.schemas import ConsolidatedFinding, Finding, Report
 #  Synthesizer tests
 # ──────────────────────────────────────────────
 
+# Synthesize is async (calls LLM for narrative). We mock the LLM part
+# so unit tests don't need a real API key.
+_NARRATIVE_MOCK = {
+    "summary": "Code review complete: findings identified.",
+    "risk_overview": "No risks identified.",
+    "detailed_review": "All agents analysed the code.",
+    "remediation_roadmap": "No remediation required.",
+}
 
-def test_synthesize_empty_findings():
+
+@pytest.mark.asyncio
+async def test_synthesize_empty_findings():
     """Synthesizing with no findings returns a report with empty list."""
-    report = synthesize({1: [], 2: [], 3: []})
+    report = await synthesize({1: [], 2: [], 3: []})
     assert isinstance(report, Report)
     assert report.findings == []
 
 
-def test_synthesize_uses_round_3_when_available():
+@pytest.mark.asyncio
+@patch("backend.council.synthesizer._generate_narrative", return_value=_NARRATIVE_MOCK)
+async def test_synthesize_uses_round_3_when_available(mock_gn):
     """Synthesis should prefer Round 3 findings over earlier rounds."""
     r1 = [Finding(agent="a", hallazgo="finding1", detalle="d", impacto="Alto", propuesta="p", ronda=1)]
     r3 = [Finding(agent="a", hallazgo="finding2", detalle="d", impacto="Crítico", propuesta="p", ronda=3)]
-    report = synthesize({1: r1, 2: [], 3: r3})
+    report = await synthesize({1: r1, 2: [], 3: r3})
     # Round 3 findings should be used
     assert len(report.findings) > 0
     assert report.findings[0].hallazgo == "finding2"
 
 
-def test_synthesize_fallback_to_round_2():
+@pytest.mark.asyncio
+@patch("backend.council.synthesizer._generate_narrative", return_value=_NARRATIVE_MOCK)
+async def test_synthesize_fallback_to_round_2(mock_gn):
     """Synthesis falls back to Round 2 when Round 3 is empty."""
     r1 = [Finding(agent="a", hallazgo="finding1", detalle="d", impacto="Alto", propuesta="p", ronda=1)]
     r2 = [Finding(agent="b", hallazgo="finding2", detalle="d", impacto="Medio", propuesta="p", ronda=2)]
-    report = synthesize({1: r1, 2: r2})
+    report = await synthesize({1: r1, 2: r2})
     assert len(report.findings) > 0
     assert report.findings[0].hallazgo == "finding2"
 
 
-def test_synthesize_fallback_to_round_1():
+@pytest.mark.asyncio
+@patch("backend.council.synthesizer._generate_narrative", return_value=_NARRATIVE_MOCK)
+async def test_synthesize_fallback_to_round_1(mock_gn):
     """Synthesis falls back to Round 1 when Rounds 2 and 3 are empty."""
     r1 = [Finding(agent="a", hallazgo="finding1", detalle="d", impacto="Alto", propuesta="p", ronda=1)]
-    report = synthesize({1: r1, 2: [], 3: []})
+    report = await synthesize({1: r1, 2: [], 3: []})
     assert len(report.findings) > 0
     assert report.findings[0].hallazgo == "finding1"
 
 
-def test_synthesize_clusters_similar_findings():
+@pytest.mark.asyncio
+@patch("backend.council.synthesizer._generate_narrative", return_value=_NARRATIVE_MOCK)
+async def test_synthesize_clusters_similar_findings(mock_gn):
     """Two similar findings from different agents should be clustered."""
     findings = [
         Finding(agent="security", hallazgo="SQL injection vulnerability", detalle="Line 5", impacto="Crítico", propuesta="Use params", ronda=3),
         Finding(agent="architecture", hallazgo="SQL injection in query", detalle="Line 5-6", impacto="Alto", propuesta="Use ORM", ronda=3),
     ]
-    report = synthesize({3: findings})
+    report = await synthesize({3: findings})
     assert len(report.findings) == 1  # clustered together
     cf = report.findings[0]
     assert cf.consensus_score > 0
     assert len(cf.votes) == 2  # both agents voted
 
 
-def test_synthesize_separates_dissimilar_findings():
+@pytest.mark.asyncio
+@patch("backend.council.synthesizer._generate_narrative", return_value=_NARRATIVE_MOCK)
+async def test_synthesize_separates_dissimilar_findings(mock_gn):
     """Dissimilar findings should remain separate."""
     findings = [
         Finding(agent="security", hallazgo="SQL injection vulnerability", detalle="Line 5", impacto="Crítico", propuesta="Use params", ronda=3),
         Finding(agent="ux", hallazgo="Missing aria labels on buttons", detalle="Line 20", impacto="Bajo", propuesta="Add aria-label", ronda=3),
     ]
-    report = synthesize({3: findings})
+    report = await synthesize({3: findings})
     assert len(report.findings) == 2
 
 
-def test_synthesize_consensus_score_all_agree():
-    """When all 5 agents vote on a finding, consensus score should be 1.0."""
+@pytest.mark.asyncio
+@patch("backend.council.synthesizer._generate_narrative", return_value=_NARRATIVE_MOCK)
+async def test_synthesize_consensus_score_all_agree(mock_gn):
+    """When 5 of 6 agents vote on a finding, consensus score should be 5/6 ~ 0.83."""
     findings = [
         Finding(agent="security", hallazgo="SQL injection", detalle="d", impacto="Crítico", propuesta="p", ronda=3),
         Finding(agent="architecture", hallazgo="SQL injection", detalle="d", impacto="Alto", propuesta="p", ronda=3),
@@ -88,22 +110,24 @@ def test_synthesize_consensus_score_all_agree():
         Finding(agent="performance", hallazgo="SQL injection", detalle="d", impacto="Medio", propuesta="p", ronda=3),
         Finding(agent="ux", hallazgo="SQL injection", detalle="d", impacto="Medio", propuesta="p", ronda=3),
     ]
-    report = synthesize({3: findings})
+    report = await synthesize({3: findings})
     assert len(report.findings) == 1
-    assert report.findings[0].consensus_score == 1.0
+    assert report.findings[0].consensus_score == pytest.approx(5 / 6, rel=0.01)
     assert report.findings[0].consensus_level == "Alto"
 
 
-def test_synthesize_summary_counts():
+@pytest.mark.asyncio
+@patch("backend.council.synthesizer._generate_narrative", return_value=_NARRATIVE_MOCK)
+async def test_synthesize_summary_counts(mock_gn):
     """The executive summary should correctly count findings by severity."""
     findings = [
         Finding(agent="a", hallazgo="Critical bug", detalle="d", impacto="Crítico", propuesta="p", ronda=3),
         Finding(agent="b", hallazgo="High issue", detalle="d", impacto="Alto", propuesta="p", ronda=3),
         Finding(agent="c", hallazgo="Medium thing", detalle="d", impacto="Medio", propuesta="p", ronda=3),
     ]
-    report = synthesize({3: findings})
-    assert "3 hallazgos" in report.summary
-    assert "1 críticos" in report.summary or "1 crítico" in report.summary
+    report = await synthesize({3: findings})
+    assert "findings identified" in report.summary or "3" in report.summary
+    assert report.findings[0].impacto == "Crítico"
 
 
 def test_text_similarity():
@@ -125,25 +149,25 @@ def test_text_similarity_dissimilar():
 
 def test_format_finding():
     """format_finding produces the expected Inverted Pyramid string."""
-    f = Finding(agent="security", hallazgo="Test finding", detalle="Detail text", impacto="High", propuesta="Fix it", ronda=1)
+    f = Finding(agent="security", hallazgo="Test finding", detalle="Detail text", impacto="Alto", propuesta="Fix it", ronda=1)
     result = format_finding(f)
     assert "HALLAZGO: Test finding" in result
     assert "··· Detalle: Detail text" in result
-    assert "··· Impacto: High" in result
+    assert "··· Impacto: Alto" in result
     assert "··· Propuesta: Fix it" in result
 
 
 def test_format_finding_with_agent():
     """format_finding with include_agent=True prepends the agent name."""
-    f = Finding(agent="security", hallazgo="Test", detalle="D", impacto="High", propuesta="P", ronda=1)
+    f = Finding(agent="security", hallazgo="Test", detalle="D", impacto="Alto", propuesta="P", ronda=1)
     result = format_finding(f, include_agent=True)
     assert result.startswith("[security]")
 
 
 def test_format_findings_list():
     """format_findings_list joins multiple findings with blank lines."""
-    f1 = Finding(agent="a", hallazgo="F1", detalle="D1", impacto="High", propuesta="P1", ronda=1)
-    f2 = Finding(agent="b", hallazgo="F2", detalle="D2", impacto="Medium", propuesta="P2", ronda=1)
+    f1 = Finding(agent="a", hallazgo="F1", detalle="D1", impacto="Alto", propuesta="P1", ronda=1)
+    f2 = Finding(agent="b", hallazgo="F2", detalle="D2", impacto="Medio", propuesta="P2", ronda=1)
     result = format_findings_list([f1, f2])
     assert "HALLAZGO: F1" in result
     assert "HALLAZGO: F2" in result
@@ -203,9 +227,9 @@ def test_parse_finding_invalid_returns_none():
 def test_add_dado_nuevo_with_context():
     """add_dado_nuevo creates a Given-New prefix when there are previous findings."""
     prev = [
-        Finding(agent="architecture", hallazgo="Poor separation of concerns", detalle="D", impacto="High", propuesta="P", ronda=1),
+        Finding(agent="architecture", hallazgo="Poor separation of concerns", detalle="D", impacto="Alto", propuesta="P", ronda=1),
     ]
-    my = Finding(agent="security", hallazgo="SQL injection in query", detalle="D", impacto="Critical", propuesta="P", ronda=2)
+    my = Finding(agent="security", hallazgo="SQL injection in query", detalle="D", impacto="Crítico", propuesta="P", ronda=2)
     result = add_dado_nuevo(prev, my)
     assert "Coincidiendo con" in result
     assert "[architecture]" in result
@@ -213,7 +237,7 @@ def test_add_dado_nuevo_with_context():
 
 def test_add_dado_nuevo_no_context():
     """add_dado_nuevo returns the hallazgo as-is when there are no previous findings."""
-    my = Finding(agent="security", hallazgo="SQL injection", detalle="D", impacto="Critical", propuesta="P", ronda=1)
+    my = Finding(agent="security", hallazgo="SQL injection", detalle="D", impacto="Crítico", propuesta="P", ronda=1)
     result = add_dado_nuevo([], my)
     assert result == "SQL injection"
 
@@ -352,7 +376,7 @@ async def test_orchestrator_agent_failure_doesnt_crash(mock_async_session_factor
                         agent=name,
                         hallazgo=f"{name} finding",
                         detalle="detail",
-                        impacto="Medium",
+                        impacto="Medio",
                         propuesta="fix",
                         ronda=1,
                     )

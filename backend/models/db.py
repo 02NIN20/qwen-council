@@ -88,7 +88,7 @@ def code_hash(code: str) -> str:
 
 
 # ──────────────────────────────────────────────
-#  Episodic memory table (Nível 2)
+#  Episodic memory table (Level 2)
 # ──────────────────────────────────────────────
 
 
@@ -121,7 +121,7 @@ class EpisodicMemory(Base):
 
 
 # ──────────────────────────────────────────────
-#  Semantic memory table (Nível 3 — pgvector)
+#  Semantic memory table (Level 3 — pgvector)
 # ──────────────────────────────────────────────
 
 

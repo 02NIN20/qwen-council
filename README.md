@@ -155,14 +155,14 @@ The frontend will be available on `http://localhost:5173` and the API on `http:/
     "remediation_roadmap": "1. Use parameterized queries...",
     "agent_metrics": {
       "per_agent": {
-        "security": { "findings_count": 9, "top_severity": "Critico" }
+        "security": { "findings_count": 9, "top_severity": "Crítico" }
       }
     },
     "findings": [
       {
         "hallazgo": "SQL injection vulnerability",
-        "impacto": "Critico",
-        "votes": { "security": "Critico", "architecture": "Alto" },
+        "impacto": "Crítico",
+        "votes": { "security": "Crítico", "architecture": "Alto" },
         "consensus_level": "Alto",
         "consensus_score": 1.0
       }

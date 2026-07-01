@@ -79,7 +79,7 @@ async def synthesize(
         if cf is not None:
             consolidated.append(cf)
 
-    # Sort by severity: Critico -> Alto -> Medio -> Bajo
+    # Sort by severity: Crítico -> Alto -> Medio -> Bajo
     severity_order = {"Crítico": 0, "Alto": 1, "Medio": 2, "Bajo": 3}
     consolidated.sort(
         key=lambda x: severity_order.get(x.impacto, 99)
@@ -188,7 +188,7 @@ def _fallback_narrative(
     consolidated: list[ConsolidatedFinding],
 ) -> dict[str, str]:
     """Generate a template-based narrative when LLM is unavailable."""
-    criticos = sum(1 for f in consolidated if f.impacto == "Critico")
+    criticos = sum(1 for f in consolidated if f.impacto == "Crítico")
     altos = sum(1 for f in consolidated if f.impacto == "Alto")
     medios = sum(1 for f in consolidated if f.impacto == "Medio")
     bajos = sum(1 for f in consolidated if f.impacto == "Bajo")
@@ -203,7 +203,7 @@ def _fallback_narrative(
 
     risk_lines = []
     for f in consolidated:
-        if f.impacto in ("Critico", "Alto"):
+        if f.impacto in ("Crítico", "Alto"):
             risk_lines.append(f"- **[{f.impacto}]** {f.hallazgo} (consensus: {f.consensus_score})")
     risk_overview = "\n".join(risk_lines) if risk_lines else "No critical or high risks identified."
 
@@ -224,7 +224,7 @@ def _fallback_narrative(
     remediation_roadmap = (
         "### Immediate (Critical):\n" + "\n".join(
             f"- {f.hallazgo}: {f.propuesta[:120]}"
-            for f in consolidated if f.impacto == "Critico"
+            for f in consolidated if f.impacto == "Crítico"
         ) + "\n\n### Short-term (High/Medium):\n" + "\n".join(
             f"- {f.hallazgo}: {f.propuesta[:120]}"
             for f in consolidated if f.impacto in ("Alto", "Medio")

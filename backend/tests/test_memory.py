@@ -401,7 +401,7 @@ class TestConsolidator:
                 session_id=f"ses-{i}",
                 code_hash=f"hash{i}",
                 code="code",
-                findings_json=f'[{{"agent": "security", "hallazgo": "{repeated_finding}", "detalle": "test", "impacto": "Critical", "propuesta": "fix", "ronda": 1}}]',
+                findings_json=f'[{{"agent": "security", "hallazgo": "{repeated_finding}", "detalle": "test", "impacto": "Crítico", "propuesta": "fix", "ronda": 1}}]',
                 score=1.0,
                 created_at=datetime.now(timezone.utc) - timedelta(days=i),
             )
@@ -433,7 +433,7 @@ class TestConsolidator:
             session_id="ses-1",
             code_hash="hash",
             code="code",
-            findings_json='[{"agent": "quality", "hallazgo": "Unique finding only once", "detalle": "test", "impacto": "Medium", "propuesta": "fix", "ronda": 1}]',
+            findings_json='[{"agent": "quality", "hallazgo": "Unique finding only once", "detalle": "test", "impacto": "Medio", "propuesta": "fix", "ronda": 1}]',
             score=1.0,
             created_at=datetime.now(timezone.utc),
         )
@@ -459,7 +459,7 @@ class TestConsolidator:
             session_id="ses-current",
             code_hash="hash",
             code="code",
-            findings_json='[{"agent": "security", "hallazgo": "Test pattern", "detalle": "d", "impacto": "Critical", "propuesta": "p", "ronda": 1}]',
+            findings_json='[{"agent": "security", "hallazgo": "Test pattern", "detalle": "d", "impacto": "Crítico", "propuesta": "p", "ronda": 1}]',
             score=1.0,
             created_at=datetime.now(timezone.utc),
         )

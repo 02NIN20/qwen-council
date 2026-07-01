@@ -345,7 +345,7 @@ function ReportView({ message }: { message: ReportMessage }) {
       {/* Report header */}
       <div className="flex items-center gap-3 mb-3 px-1">
         <span className="text-sm font-bold text-retro-cyan uppercase tracking-wider">
-          &gt; REPORTE CONSOLIDADO
+          &gt; CONSOLIDATED REPORT
         </span>
         <span className="text-[10px] text-gray-600 font-mono">
           {report.participants.length} agents &middot; {report.rounds} rounds &middot; {sessionId.slice(0, 8)}
@@ -355,7 +355,7 @@ function ReportView({ message }: { message: ReportMessage }) {
       {/* Executive summary */}
       <div className="finding-item mb-3">
         <p className="text-[10px] text-retro-cyan font-bold uppercase tracking-wider mb-1">
-          &gt; RESUMEN EJECUTIVO
+          &gt; EXECUTIVE SUMMARY
         </p>
         <p className="text-sm text-gray-300 leading-relaxed whitespace-pre-wrap">
           {report.summary}
@@ -483,16 +483,16 @@ function ReportView({ message }: { message: ReportMessage }) {
               {expandedIdx === idx && (
                 <div className="mt-2 pt-2 space-y-2 border-t border-retro-border">
                   <p className="text-sm text-gray-400">
-                    <span className="text-retro-cyan font-bold text-[10px] uppercase tracking-wider">Detalle: </span>
+                    <span className="text-retro-cyan font-bold text-[10px] uppercase tracking-wider">Detail: </span>
                     {finding.detalle}
                   </p>
                   <p className="text-sm text-gray-400">
-                    <span className="text-retro-cyan font-bold text-[10px] uppercase tracking-wider">Propuesta: </span>
+                    <span className="text-retro-cyan font-bold text-[10px] uppercase tracking-wider">Proposal: </span>
                     {finding.propuesta}
                   </p>
                   {voteEntries.length > 0 && (
                     <div>
-                      <span className="text-[10px] text-gray-600 font-bold uppercase tracking-wider">Votos: </span>
+                      <span className="text-[10px] text-gray-600 font-bold uppercase tracking-wider">Votes: </span>
                       <div className="flex flex-wrap gap-1.5 mt-1">
                         {voteEntries.map(([agentId, vote]) => {
                           const agent = AGENTS.find((a) => a.id === agentId);

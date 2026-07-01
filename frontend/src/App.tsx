@@ -7,6 +7,7 @@ import type {
 } from './types';
 import { AGENTS } from './types';
 import { submitReview, getSession } from './api/council';
+import { ErrorBoundary } from './components/ErrorBoundary';
 import ChatView from './components/ChatView';
 import Sidebar from './components/Sidebar';
 
@@ -360,47 +361,49 @@ export default function App() {
   );
 
   return (
-    <div className="flex h-screen bg-retro-bg">
-      <Sidebar
-        onNewChat={handleNewChat}
-        onSelectSession={handleSelectSession}
-        activeSessionId={activeSessionId}
-        collapsed={sidebarCollapsed}
-        onToggle={() => setSidebarCollapsed(!sidebarCollapsed)}
-        refreshKey={refreshKey}
-      />
-      <div className="flex-1 flex flex-col min-w-0">
-        {/* Header */}
-        <div className="flex items-center justify-between px-4 py-2 border-b border-retro-border bg-retro-surface">
-          <div className="flex items-center gap-2">
-            <span className="text-xs font-bold text-retro-cyan uppercase tracking-widest">
-              &gt; QWEN COUNCIL
-            </span>
-            {activeSessionId && (
-              <span className="text-[10px] text-gray-600 font-mono">
-                {activeSessionId.slice(0, 12)}
-              </span>
-            )}
-          </div>
-          <button
-            onClick={handleNewChat}
-            className="flex items-center gap-1.5 px-3 py-1.5 border border-retro-border text-xs text-gray-400 hover:text-retro-cyan hover:border-retro-cyan transition-colors"
-            aria-label="New review"
-          >
-            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
-            </svg>
-            New Review
-          </button>
-        </div>
-        {/* Chat */}
-        <ChatView
-          messages={messages}
-          onSubmit={handleSubmit}
-          disabled={isLoading}
-          sessionId={activeSessionId}
+    <ErrorBoundary>
+      <div className="flex h-screen bg-retro-bg">
+        <Sidebar
+          onNewChat={handleNewChat}
+          onSelectSession={handleSelectSession}
+          activeSessionId={activeSessionId}
+          collapsed={sidebarCollapsed}
+          onToggle={() => setSidebarCollapsed(!sidebarCollapsed)}
+          refreshKey={refreshKey}
         />
+        <div className="flex-1 flex flex-col min-w-0">
+          {/* Header */}
+          <div className="flex items-center justify-between px-4 py-2 border-b border-retro-border bg-retro-surface">
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-bold text-retro-cyan uppercase tracking-widest">
+                &gt; QWEN COUNCIL
+              </span>
+              {activeSessionId && (
+                <span className="text-[10px] text-gray-600 font-mono">
+                  {activeSessionId.slice(0, 12)}
+                </span>
+              )}
+            </div>
+            <button
+              onClick={handleNewChat}
+              className="flex items-center gap-1.5 px-3 py-1.5 border border-retro-border text-xs text-gray-400 hover:text-retro-cyan hover:border-retro-cyan transition-colors"
+              aria-label="New review"
+            >
+              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+              </svg>
+              New Review
+            </button>
+          </div>
+          {/* Chat */}
+          <ChatView
+            messages={messages}
+            onSubmit={handleSubmit}
+            disabled={isLoading}
+            sessionId={activeSessionId}
+          />
+        </div>
       </div>
-    </div>
+    </ErrorBoundary>
   );
 }

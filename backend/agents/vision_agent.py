@@ -16,7 +16,12 @@ logger = logging.getLogger(__name__)
 
 
 class VisionAgent(BaseAgent):
-    """Agent specialised in visual analysis of UIs, diagrams, and screenshots."""
+    """Agent specialised in visual analysis of UIs, diagrams, and screenshots.
+
+    NOTE: This agent does NOT store per-request state on ``self`` because
+    ``CouncilOrchestrator`` holds agents as singletons. All per-request
+    data (``image_url``) is passed as a parameter to avoid race conditions.
+    """
 
     def __init__(self) -> None:
         # Use the VL model for vision, fall back to the default text model
@@ -80,20 +85,27 @@ class VisionAgent(BaseAgent):
         list[Finding]
             Zero or more findings in Inverted Pyramid format.
         """
-        self._current_image_url = image_url
         user_prompt = self._build_user_prompt(code, context, round)
-        raw = await self._call_llm(user_prompt)
+        raw = await self._call_llm(user_prompt, image_url=image_url)
         return self._parse_findings(raw, round)
 
-    async def _call_llm(self, user_prompt: str) -> str:
-        """Call Qwen-VL with multimodal content if an image is available."""
+    async def _call_llm(self, user_prompt: str, image_url: str | None = None) -> str:
+        """Call Qwen-VL with multimodal content if an image is available.
+
+        Parameters
+        ----------
+        user_prompt : str
+            The assembled prompt for the LLM.
+        image_url : str | None
+            Image URL to include as multimodal content. Passed directly (not
+            stored on ``self``) to avoid race conditions with shared agents.
+        """
         try:
             messages: list[dict[str, Any]] = [
                 {"role": "system", "content": self._build_system_prompt()},
             ]
 
             # Build user message — text-only or text + image
-            image_url = getattr(self, "_current_image_url", None)
             if image_url:
                 # Multimodal content: text + image
                 user_content: list[dict[str, Any]] = [
