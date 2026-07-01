@@ -60,7 +60,12 @@ class Consolidator:
                 continue
             try:
                 findings_data = json.loads(ses.findings_json)
-                if isinstance(findings_data, list):
+                # Handle both new format (dict with `findings` key) and old format (flat list)
+                if isinstance(findings_data, dict):
+                    flat = findings_data.get("findings", [])
+                    if isinstance(flat, list):
+                        all_findings.extend(flat)
+                elif isinstance(findings_data, list):
                     all_findings.extend(findings_data)
             except (json.JSONDecodeError, TypeError):
                 logger.warning(

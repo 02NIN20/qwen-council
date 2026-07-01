@@ -227,10 +227,20 @@ export default function App() {
         timestamp: Date.now(),
       };
       // Create a report message from stored findings
+      // Handle both new format (object with `report` key) and old format (flat array)
+      const reportData = session.findings_json;
+      const report = reportData?.report
+        ? reportData.report
+        : {
+            findings: Array.isArray(reportData) ? [] : (reportData?.findings || []),
+            summary: 'Past session',
+            rounds: 3,
+            participants: []
+          };
       const reportMsg: ChatMessageData = {
         id: uid(),
         role: 'report',
-        report: session.findings_json?.report || { findings: session.findings_json?.findings || [] },
+        report,
         sessionId: session.id,
       };
       setMessages([userMsg, reportMsg]);

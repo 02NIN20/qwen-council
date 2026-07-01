@@ -376,7 +376,10 @@ class CouncilOrchestrator:
                 await mgr.save(
                     session_id=session_id,
                     code=code,
-                    findings=flat,
+                    findings={
+                        "report": report.model_dump(),
+                        "findings": flat,
+                    },
                 )
         except Exception:
             logger.exception("Failed to save episodic memory for %s", session_id)
