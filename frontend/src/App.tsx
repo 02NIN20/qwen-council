@@ -186,6 +186,7 @@ export default function App() {
   const [isLoading, setIsLoading] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [activeSessionId, setActiveSessionId] = useState<string | undefined>();
+  const [refreshKey, setRefreshKey] = useState(0);
 
   const cancelRef = useRef<(() => void) | null>(null);
 
@@ -218,6 +219,7 @@ export default function App() {
     try {
       const session = await getSession(sessionId);
       setActiveSessionId(sessionId);
+      setRefreshKey(k => k + 1);
       // Create a user message from the session
       const userMsg: ChatMessageData = {
         id: uid(),
@@ -325,6 +327,7 @@ export default function App() {
             setMessages((prev) => [...prev, reportMsg]);
             setIsLoading(false);
             cancelRef.current = null;
+            setRefreshKey(k => k + 1);
           }
         );
       } catch (err) {
@@ -351,6 +354,7 @@ export default function App() {
         activeSessionId={activeSessionId}
         collapsed={sidebarCollapsed}
         onToggle={() => setSidebarCollapsed(!sidebarCollapsed)}
+        refreshKey={refreshKey}
       />
       <div className="flex-1 flex flex-col min-w-0">
         {/* Header */}

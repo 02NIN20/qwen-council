@@ -8,9 +8,10 @@ interface SidebarProps {
   activeSessionId?: string;
   collapsed: boolean;
   onToggle: () => void;
+  refreshKey?: number;
 }
 
-export default function Sidebar({ onNewChat, onSelectSession, activeSessionId, collapsed, onToggle }: SidebarProps) {
+export default function Sidebar({ onNewChat, onSelectSession, activeSessionId, collapsed, onToggle, refreshKey }: SidebarProps) {
   const [sessions, setSessions] = useState<SessionSummary[]>([]);
   const [loading, setLoading] = useState(false);
 
@@ -20,7 +21,7 @@ export default function Sidebar({ onNewChat, onSelectSession, activeSessionId, c
       .then(setSessions)
       .catch(() => {}) // silent fail if no DB
       .finally(() => setLoading(false));
-  }, []);
+  }, [refreshKey]);
 
   if (collapsed) {
     return (
@@ -80,7 +81,9 @@ export default function Sidebar({ onNewChat, onSelectSession, activeSessionId, c
                 : 'bg-transparent border-transparent text-gray-500 hover:bg-retro-bg hover:border-retro-border hover:text-gray-300'
             }`}
           >
-            <p className="font-bold truncate">{session.code_preview.slice(0, 40)}</p>
+            <p className="font-bold truncate">
+              {activeSessionId === session.id ? '> ' : ''}{session.code_preview.slice(0, 40)}
+            </p>
             <div className="flex items-center gap-2 mt-1">
               <span className="text-[10px] text-gray-600">{session.created_at?.slice(0, 10) || ''}</span>
               <span className="text-[10px] text-gray-600">{session.finding_count} findings</span>

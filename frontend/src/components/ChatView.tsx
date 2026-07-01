@@ -18,6 +18,12 @@ export default function ChatView({ messages, onSubmit, disabled, sessionId }: Ch
   const [followUpResponse, setFollowUpResponse] = useState('');
   const [followUpLoading, setFollowUpLoading] = useState(false);
 
+  // Reset follow-up state when switching sessions
+  useEffect(() => {
+    setFollowUp('');
+    setFollowUpResponse('');
+  }, [sessionId]);
+
   // Auto-scroll to bottom when messages change
   useEffect(() => {
     const container = containerRef.current;
