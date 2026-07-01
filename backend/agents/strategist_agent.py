@@ -21,6 +21,7 @@ class StrategistAgent(BaseAgent):
                 "I'm concise, strategic, and I think several moves ahead. "
                 "Business, war, life — the principles are the same."
             ),
+            domain="strategy",
         )
 
     async def analyze(

@@ -31,9 +31,10 @@ class BaseAgent(ABC):
         Short description of the agent's speciality.
     """
 
-    def __init__(self, name: str, role_description: str) -> None:
+    def __init__(self, name: str, role_description: str, domain: str = "general") -> None:
         self.name = name
         self.role_description = role_description
+        self.domain = domain
 
         self._client = AsyncOpenAI(
             api_key=settings.qwen_api_key,
@@ -201,16 +202,26 @@ class BaseAgent(ABC):
         Each agent responds briefly (1-3 sentences) so the synthesizer
         can merge them into a single flowing answer.
         """
+        domain_prompts = {
+            "science": "Your domain is SCIENCE and NATURE. Only answer questions about physics, biology, chemistry, astronomy, or the natural world. For history, art, philosophy, or social topics, respond: 'That is outside my domain — the Historian or Generalist would be better suited.'",
+            "tech": "Your domain is TECHNOLOGY and ENGINEERING. Only answer questions about software, hardware, programming, computing, or engineering. For history, art, philosophy, or social topics, respond: 'That is outside my domain — the Historian or Generalist would be better suited.'",
+            "philosophy": "Your domain is PHILOSOPHY and DEEP QUESTIONS. Only answer questions about meaning, ethics, knowledge, existence, or abstract thinking. For history, art, technology, or social topics, respond: 'That is outside my domain — the Historian or Generalist would be better suited.'",
+            "history": "Your domain is HISTORY and CULTURE. Only answer questions about past events, civilizations, historical figures, or cultural evolution. For science, art, philosophy, or technology, respond: 'That is outside my domain — the Scientist or Generalist would be better suited.'",
+            "art": "Your domain is ART, LITERATURE, MUSIC, and CREATIVITY. Only answer questions about artistic expression, creative works, or aesthetic appreciation. For science, history, philosophy, or technology, respond: 'That is outside my domain — the Historian or Generalist would be better suited.'",
+            "psychology": "Your domain is PSYCHOLOGY and the HUMAN MIND. Only answer questions about the psyche, behaviour, dreams, archetypes, or emotions. For science, history, art, or technology, respond: 'That is outside my domain — the Scientist or Generalist would be better suited.'",
+            "strategy": "Your domain is STRATEGY, BUSINESS, and DECISION-MAKING. Only answer questions about planning, competition, leadership, or tactical thinking. For science, history, art, or philosophy, respond: 'That is outside my domain — the Historian or Generalist would be better suited.'",
+            "general": "Your domain is GENERAL KNOWLEDGE, practical wisdom, and everyday life. You can answer ANY question with common sense and wit. Adapt your tone to the question — warm for social, insightful for complex topics. You are the catch-all expert."
+        }
+        domain_rule = domain_prompts.get(self.domain, domain_prompts["general"])
+
         system_prompt = (
             f"You are {self.role_description} "
-            "You can answer ANY question — greetings, science, philosophy, or tech. "
-            "Adapt your tone to the question:\n"
-            "- For greetings/social: respond with warmth and personality (1-2 sentences).\n"
-            "- For technical/scientific: be concise and insightful (max 80 words).\n\n"
+            f"{domain_rule}\n\n"
             "Rules:\n"
             "- MAXIMUM 80 WORDS. Shorter is better.\n"
             "- No introductions or sign-offs. Just respond.\n"
-            "- Be yourself — your unique perspective adds value to any topic.\n"
+            "- Be yourself — your unique perspective adds value to your domain.\n"
+            "- If the question is outside your domain, politely decline using the line above.\n"
         )
 
         user_content = f"### Question:\n{question}\n"

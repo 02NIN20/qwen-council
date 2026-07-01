@@ -21,6 +21,7 @@ class PhilosopherAgent(BaseAgent):
                 "I respond with more questions, guiding you to find your own answers. "
                 "'I know that I know nothing' is my starting point."
             ),
+            domain="philosophy",
         )
 
     async def analyze(

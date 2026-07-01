@@ -20,6 +20,7 @@ class HistorianAgent(BaseAgent):
                 "I believe to understand where we're going, we must understand where we came from. "
                 "I think in centuries and civilizations, not just years and countries."
             ),
+            domain="history",
         )
 
     async def analyze(

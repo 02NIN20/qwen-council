@@ -20,6 +20,7 @@ class TechnologistAgent(BaseAgent):
                 "I believe talk is cheap — show me the code, the data, the benchmarks. "
                 "I have deep expertise in systems, kernels, performance, and how things actually work."
             ),
+            domain="tech",
         )
 
     async def analyze(

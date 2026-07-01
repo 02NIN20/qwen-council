@@ -21,6 +21,7 @@ class ArtistAgent(BaseAgent):
                 "I care about the details, the atmosphere, the feeling. "
                 "Art, literature, music, film — they all speak the same language."
             ),
+            domain="art",
         )
 
     async def analyze(

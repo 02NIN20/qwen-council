@@ -214,7 +214,7 @@ def _classify_question(question: str) -> str:
         return "social"
 
     # Detect if question starts with "what is / explain / define" etc
-    has_question = any(kw in q for kw in ["what is ", "how does ", "why does ", "explain ", "define "])
+    has_question = any(kw in q for kw in ["what is ", "how does ", "why does ", "explain ", "define ", "que es ", "que son ", "como ", "por que ", "cual es ", "quien ", "donde ", "cuando ", "quien fue ", "habla", "hablame", "cuentame", "dimelo"])
 
     # ── Science ──
     science_keywords = [
@@ -228,6 +228,13 @@ def _classify_question(question: str) -> str:
         "element", "compound", "neuron", "photosynthesis",
         "planet", "star", "galaxy", "energy", "force", "mass",
         "velocity", "wave", "electron", "proton", "neutron", "photon",
+        # Spanish
+        "ciencia", "cientifico", "cientifica", "fisica", "quimica",
+        "biologia", "naturaleza", "planeta", "estrella", "galaxia",
+        "universo", "atomo", "molecula", "energia", "fuerza",
+        "velocidad", "masa", "temperatura", "experimento",
+        "hipotesis", "teoria", "datos", "analisis", "investigacion",
+        "descubrimiento", "explique",
     ]
     science_count = sum(1 for kw in science_keywords if kw in q)
     if science_count >= 2:
@@ -252,6 +259,14 @@ def _classify_question(question: str) -> str:
         "web", "frontend", "backend", "fullstack", "ai", "machine learning",
         "neural", "deep learning", "llm", "gpt", "api key",
         "website", "browser", "internet", "http", "url",
+        # Spanish
+        "codigo", "programa", "programacion", "computadora",
+        "ordenador", "software", "hardware", "internet", "aplicacion",
+        "base de datos", "servidor", "algoritmo", "funcion",
+        "variable", "clase", "python", "javascript", "java", "html",
+        "css", "docker", "linux", "windows", "web", "app",
+        "inteligencia artificial", "maquina", "robot", "automatizar",
+        "tecnologia", "digital", "red", "datos", "sistema",
     ]
     tech_count = sum(1 for kw in tech_keywords if kw in q)
     # "what is html" → 1 tech keyword + question word
@@ -273,6 +288,17 @@ def _classify_question(question: str) -> str:
         "nation", "border", "geopolitic", "diplomacy", "policy",
         "roman", "greek", "egyptian", "ottoman", "byzantine",
         "french revolution", "industrial revolution",
+        # Spanish
+        "historia", "historico", "historica", "guerra", "imperio",
+        "revolucion", "independencia", "colombia", "mexico", "peru",
+        "argentina", "chile", "españa", "espanol", "cultura",
+        "politica", "economia", "sociedad", "civilizacion",
+        "presidente", "rey", "reina", "batalla", "tratado",
+        "colonizacion", "dictadura", "comunismo", "capitalismo",
+        "nacion", "frontera", "religion", "migracion",
+        "bolivar", "san martin", "juarez", "peron", "castro",
+        "chavez", "neruda", "garcia marquez", "borges",
+        "casi nunca", "curiosidades", "secretos",
     ]
     history_count = sum(1 for kw in history_keywords if kw in q)
     if history_count >= 2:
@@ -289,11 +315,22 @@ def _classify_question(question: str) -> str:
         "belief", "reason", "logic", "argument", "fallacy",
         "paradox", "infinite", "mortality", "death", "life",
         "wisdom", "virtue", "justice", "equality", "freedom",
-        "what is", "why are we", "nature of", "essence",
+        "why are we", "nature of", "essence",
         "love", "hate", "emotion", "feeling",
+        # Spanish
+        "filosofia", "significado", "existencia", "verdad",
+        "conocimiento", "conciencia", "mente", "alma", "realidad",
+        "etica", "moral", "bien", "mal", "libre albedrio",
+        "dios", "religion", "fe", "creencia", "razon", "logica",
+        "paradoja", "infinito", "mortalidad", "muerte", "vida",
+        "sabiduria", "virtud", "justicia", "igualdad", "libertad",
+        "por que estamos", "naturaleza de",
+        "amor", "odio", "emocion", "sentimiento",
     ]
     philosophy_count = sum(1 for kw in philosophy_keywords if kw in q)
     if philosophy_count >= 2:
+        return "philosophy"
+    if has_question and philosophy_count >= 1:
         return "philosophy"
 
     # ── Strategy / business / advice ──
@@ -307,6 +344,15 @@ def _classify_question(question: str) -> str:
         "productivity", "focus", "habit", "discipline",
         "team", "organization", "project", "deadline",
         "prioritize", "efficient", "effective",
+        # Spanish
+        "estrategia", "negocio", "carrera", "liderazgo",
+        "administracion", "meta", "objetivo", "plan", "decision",
+        "riesgo", "competencia", "mercado", "emprendedor",
+        "negociar", "negociacion", "ganar", "exito", "fracaso",
+        "consejo", "deberia", "recomendar", "mejorar", "crecer",
+        "desarrollar", "habilidad", "aprender", "productividad",
+        "enfoque", "habito", "disciplina", "equipo", "organizacion",
+        "proyecto", "plazo", "priorizar", "eficiente", "efectivo",
     ]
     strategy_count = sum(1 for kw in strategy_keywords if kw in q)
     if strategy_count >= 2:
@@ -324,6 +370,15 @@ def _classify_question(question: str) -> str:
         "masterpiece", "gallery", "museum", "exhibition",
         "write a poem", "write a song", "write a story", "write a book",
         "write a novel", "paint a", "draw a", "sing a", "play music",
+        # Spanish
+        "arte", "musica", "cancion", "pintura", "pelicula",
+        "literatura", "libro", "novela", "poema", "poesia", "baile",
+        "teatro", "escultura", "fotografia", "cine", "director",
+        "compositor", "musico", "escritor", "autor", "creativo",
+        "imaginacion", "belleza", "estetica", "moda", "dibujo",
+        "boceto", "color", "melodia", "ritmo", "armonia",
+        "lienzo", "pincel", "obra maestra", "galeria", "museo",
+        "exposicion", "escribir un poema", "escribir una cancion",
     ]
     art_count = sum(1 for kw in art_keywords if kw in q)
     if art_count >= 2 or (has_question and art_count >= 1):

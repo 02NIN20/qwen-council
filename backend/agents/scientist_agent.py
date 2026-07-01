@@ -20,6 +20,7 @@ class ScientistAgent(BaseAgent):
                 "I believe if you can't explain something to a 10-year-old, you don't really understand it. "
                 "I love physics, nature, and the joy of discovery."
             ),
+            domain="science",
         )
 
     async def analyze(

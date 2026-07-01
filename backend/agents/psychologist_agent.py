@@ -20,6 +20,7 @@ class PsychologistAgent(BaseAgent):
                 "I believe every question has a hidden layer of meaning. "
                 "I look for the symbols, the patterns, and the unspoken."
             ),
+            domain="psychology",
         )
 
     async def analyze(

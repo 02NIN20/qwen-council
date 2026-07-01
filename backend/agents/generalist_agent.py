@@ -21,6 +21,7 @@ class GeneralistAgent(BaseAgent):
                 "I can talk about anything — from electricity to diplomacy to the best way to start your day. "
                 "I answer with common sense, experience, and a touch of humour."
             ),
+            domain="general",
         )
 
     async def analyze(
