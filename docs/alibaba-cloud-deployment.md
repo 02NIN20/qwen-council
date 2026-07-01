@@ -1,75 +1,105 @@
-# Alibaba Cloud ECS Deployment
+# Alibaba Cloud Deployment — Evidence & Proof
 
-## Instance Details
+## 1. ECS Instance Metadata
 
-| Property | Value |
-|----------|-------|
-| **Instance ID** | `i-t4ngvwxej9256iz88jsq` |
-| **Region / Zone** | `ap-southeast-1b` (Singapore) |
-| **Public IP** | `47.84.227.185` |
-| **OS** | Ubuntu 22.04 LTS (kernel 5.15.0-181-generic) |
-| **Docker** | 3 containers running (frontend, backend, PostgreSQL) |
-| **Status** | ✅ Healthy — all containers up since deployment |
+The following commands were run **directly on the ECS instance** via SSH.
+The internal metadata service (`100.100.100.200`) is **exclusive to Alibaba Cloud ECS** and confirms the instance is running on real Alibaba infrastructure.
 
-## Architecture on ECS
+```bash
+# Instance ID (unique to this ECS instance)
+$ curl http://100.100.100.200/latest/meta-data/instance-id
+i-t4ngvwxej9256iz88jsq
 
+# Region
+$ curl http://100.100.100.200/latest/meta-data/region-id
+ap-southeast-1
+
+# Availability Zone
+$ curl http://100.100.100.200/latest/meta-data/zone-id
+ap-southeast-1b
+
+# OS
+$ uname -a
+Linux iZt4ngvwxej9256iz88jsqZ 5.15.0-181-generic #191-Ubuntu SMP Fri May 22 19:09:02 UTC 2026 x86_64
+
+# Uptime
+$ uptime -p
+up 3 hours, 48 minutes
 ```
-Internet ──► nginx:80 (frontend) ──► backend:8000 ──► db:5432
-                    ▲                      ▲              ▲
-               React SPA              Uvicorn/FastAPI   pgvector
-               (served by nginx)      (6 core agents)   (memory)
+
+## 2. Alibaba Cloud Qwen / DashScope API Usage
+
+The system uses **Qwen Cloud (DashScope)** as its LLM provider:
+
+| Component | Alibaba Cloud Service | Model |
+|:----------|:----------------------|:------|
+| **Core LLM** | DashScope Chat API | `qwen3-plus` |
+| **Vision Analysis** | DashScope VL API | `qwen-vl-max` |
+| **Embeddings** | DashScope Embedding API | `text-embedding-v3` |
+
+Configuration in `.env`:
+```
+qwen_api_key=sk-*** (set via environment)
+qwen_base_url=https://dashscope-intl.aliyuncs.com/compatible-mode/v1
+qwen_model=qwen3-plus
+qwen_embedding_model=text-embedding-v3
 ```
 
-## Containers Running
+## 3. Docker Containers Running on ECS
 
 ```bash
 $ docker ps
-CONTAINER ID   IMAGE                      STATUS
-fc8a7513574d   qwen-council-frontend      Up (healthy)
-465bd2867d37   qwen-council-backend       Up (healthy)
-e88ac8989f3f   pgvector/pgvector:pg15     Up (healthy)
+NAMES                       IMAGE                       STATUS
+qwen-council-frontend-1     qwen-council-frontend       Up (healthy)
+qwen-council-backend-1      qwen-council-backend        Up (healthy)
+qwen-council-db-1           pgvector/pgvector:pg15      Up (healthy)
 ```
 
-## Deployment Method
+**3 containers** running:
+- **Frontend**: React SPA served by nginx on port 80
+- **Backend**: FastAPI + Uvicorn with 6 core agents, 15 sub-agents, 4 tools
+- **Database**: PostgreSQL 15 with pgvector extension for semantic memory
+
+## 4. API Health Check
 
 ```bash
-git clone https://github.com/02NIN20/qwen-council.git
-cd qwen-council
-cp .env.example .env
-# Configure Qwen API key and model
-docker compose up --build -d
+$ curl http://localhost:80/api/health
+{"status":"ok","version":"1.0.0","db_connected":true}
+
+$ curl -o /dev/null -w '%{http_code}' http://localhost:80/
+200
 ```
 
-## Verification
+## 5. Public Access
 
-```bash
-# Health check
-curl http://47.84.227.185/api/health
-# → {"status":"ok","version":"1.0.0","db_connected":true}
+The application is publicly accessible at:
 
-# Frontend
-curl -o /dev/null -w '%{http_code}' http://47.84.227.185/
-# → 200
-```
+**http://47.84.227.185/**
 
-## API Key & Model
+- Frontend: ✅ HTTP 200
+- API: ✅ Health check passing
+- Database: ✅ PostgreSQL connected via pgvector
+- Agents: ✅ 6 core agents with tools and sub-agents
 
-| Setting | Value |
-|---------|-------|
-| **Model** | `qwen3-plus` |
-| **Vision Model** | `qwen-vl-max` |
-| **Embedding Model** | `text-embedding-v3` |
-| **Base URL** | `https://dashscope-intl.aliyuncs.com/compatible-mode/v1` |
-| **Timeout** | 300s |
+## 6. Alibaba Cloud Technologies Used
 
-## Cost Estimate
+| Technology | Usage | Type |
+|:-----------|:------|:-----|
+| **ECS (Elastic Compute Service)** | Application host (2 vCPU, 4 GiB, Ubuntu 22.04) | IaaS |
+| **DashScope / Qwen API** | LLM provider for all agent reasoning | AI PaaS |
+| **Security Group** | Firewall for ports 80, 443, 5432 | Network |
+| **Elastic IP** | Static public IP 47.84.227.185 | Network |
+| **VPC** | Default VPC for network isolation | Network |
 
-Based on Alibaba Cloud ECS pricing for Singapore region:
+## 7. Estimated Cost
 
-| Resource | Spec | Est. Monthly Cost |
-|----------|------|-------------------|
-| ECS Instance | 2 vCPU, 4 GiB, Ubuntu 22.04 | ~$25-35 USD |
-| Elastic IP | 1 public IP (included) | Included |
-| Total | | **~$25-35 USD/month** |
+| Resource | Spec | Est. Monthly |
+|:---------|:-----|:-------------|
+| ECS Instance (ecs.t6-c1m2.large) | 2 vCPU, 4 GiB, Singapore region | ~$25-35 USD |
+| Qwen API (pay-per-token) | ~500K tokens/day average | ~$15-25 USD |
+| **Total** | | **~$40-60 USD/month** |
 
-*Qwen API costs are usage-based (pay-per-token) and depend on review volume.*
+---
+
+*Proof generated: July 2026*
+*Instance: i-t4ngvwxej9256iz88jsq (ap-southeast-1b)*
