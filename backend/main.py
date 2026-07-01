@@ -97,9 +97,25 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(
     title="Qwen Council API",
-    description="Multi-agent code review system with memory",
+    description=(
+        "Multi-agent code review and collaboration system built for the "
+        "[Global AI Hackathon Series with Qwen Cloud](https://qwencloud-hackathon.devpost.com/) — Track 3: Agent Society.\n\n"
+        "## Features\n\n"
+        "- **6 specialised code review agents** (Security, Architecture, Quality, Performance, UX, Vision)\n"
+        "- **8 personality-based chat agents** (Scientist, Technologist, Philosopher, Historian, Artist, Psychologist, Strategist, Generalist)\n"
+        "- **4-round debate cycle** with Inverted Pyramid + Given-New communication protocol\n"
+        "- **3-level memory architecture** (Working, Episodic, Semantic with pgvector)\n"
+        "- **Real-time SSE streaming** for live agent status updates\n\n"
+        "## Authentication\n\n"
+        "No authentication required. All endpoints are public for hackathon demo purposes.\n\n"
+        "## Token Usage\n\n"
+        "Review responses include `token_usage` with per-agent breakdown and estimated cost."
+    ),
     version="1.0.0",
     lifespan=lifespan,
+    docs_url="/docs",
+    redoc_url="/redoc",
+    openapi_url="/openapi.json",
 )
 
 app.add_middleware(
@@ -118,7 +134,7 @@ orchestrator = CouncilOrchestrator()
 # ──────────────────────────────────────────────
 
 
-@app.post("/api/review", response_model=ReviewResponse)
+@app.post("/api/review", response_model=ReviewResponse, tags=["Code Review"])
 async def review_code(payload: ReviewRequest):
     """Execute the council on the provided source code.
 
@@ -146,7 +162,7 @@ async def review_code(payload: ReviewRequest):
         )
 
 
-@app.post("/api/review/stream")
+@app.post("/api/review/stream", tags=["Code Review"])
 async def review_code_stream(payload: ReviewRequest):
     """Stream council progress via Server-Sent Events.
 
@@ -485,7 +501,7 @@ async def _synthesize_chat(
     return resp.choices[0].message.content or relevant[0]["answer"]
 
 
-@app.post("/api/chat", response_model=ChatResponse)
+@app.post("/api/chat", response_model=ChatResponse, tags=["Chat"])
 async def chat_general(
     payload: ChatRequest,
     db: AsyncSession = Depends(get_session),
@@ -641,7 +657,7 @@ async def chat_general(
         raise HTTPException(status_code=500, detail="Chat failed")
 
 
-@app.post("/api/chat/stream")
+@app.post("/api/chat/stream", tags=["Chat"])
 async def chat_stream(payload: ChatRequest):
     """Stream multi-agent chat responses via Server-Sent Events.
 
@@ -748,7 +764,7 @@ async def chat_stream(payload: ChatRequest):
     )
 
 
-@app.get("/api/sessions", response_model=list[SessionSummary])
+@app.get("/api/sessions", response_model=list[SessionSummary], tags=["Sessions"])
 async def list_sessions(
     limit: int = 20,
     db: AsyncSession = Depends(get_session),
@@ -781,7 +797,7 @@ async def list_sessions(
         raise HTTPException(status_code=500, detail="Failed to list sessions")
 
 
-@app.get("/api/sessions/{session_id}", response_model=SessionDetail)
+@app.get("/api/sessions/{session_id}", response_model=SessionDetail, tags=["Sessions"])
 async def get_session_detail(
     session_id: str,
     db: AsyncSession = Depends(get_session),
@@ -813,7 +829,7 @@ async def get_session_detail(
         )
 
 
-@app.delete("/api/sessions/{session_id}")
+@app.delete("/api/sessions/{session_id}", tags=["Sessions"])
 async def delete_session(
     session_id: str,
     db: AsyncSession = Depends(get_session),
@@ -832,7 +848,7 @@ async def delete_session(
         raise HTTPException(status_code=500, detail="Failed to delete session")
 
 
-@app.get("/api/memory/patterns", response_model=list[MemoryPattern])
+@app.get("/api/memory/patterns", response_model=list[MemoryPattern], tags=["Memory"])
 async def list_memory_patterns(
     category: str | None = None,
     db: AsyncSession = Depends(get_session),
@@ -861,7 +877,7 @@ async def list_memory_patterns(
         )
 
 
-@app.get("/api/health", response_model=HealthResponse)
+@app.get("/api/health", response_model=HealthResponse, tags=["Health"])
 async def health_check():
     """Health check endpoint."""
     db_ok = False
