@@ -9,6 +9,7 @@ import { ErrorBoundary } from './components/ErrorBoundary';
 import ChatView from './components/ChatView';
 import Sidebar from './components/Sidebar';
 import LiveCouncilStatus from './components/LiveCouncilStatus';
+import BenchmarkDashboard from './components/BenchmarkDashboard';
 
 /* ─── Helpers ───────────────────────────────────────────────────────── */
 
@@ -27,6 +28,16 @@ export default function App() {
   const [activeSessionId, setActiveSessionId] = useState<string | undefined>();
   const [refreshKey, setRefreshKey] = useState(0);
 
+  const [showBenchmark, setShowBenchmark] = useState(false);
+
+  const handleOpenBenchmark = useCallback(() => {
+    setShowBenchmark(true);
+  }, []);
+
+  const handleCloseBenchmark = useCallback(() => {
+    setShowBenchmark(false);
+  }, []);
+
   // Stores the latest stream payload so LiveCouncilStatus can read it
   const streamPayloadRef = useRef<StreamReviewRequest | null>(null);
 
@@ -35,6 +46,7 @@ export default function App() {
     setMessages([]);
     setIsLoading(false);
     setActiveSessionId(undefined);
+    setShowBenchmark(false);
     streamPayloadRef.current = null;
   }, []);
 
@@ -45,14 +57,13 @@ export default function App() {
       const session = await getSession(sessionId);
       setActiveSessionId(sessionId);
       setRefreshKey(k => k + 1);
-      // Detect chat session (findings_json contains chat data, not a review report)
       const reportData = session.findings_json;
-      const isChat = Array.isArray(reportData) && reportData[0]?.question !== undefined;
+      const isChat = sessionId.startsWith('chat-');
 
       if (isChat) {
-        // ── Chat session — load ALL conversation turns ──────────
         const allMessages: ChatMessageData[] = [];
-        for (const entry of reportData) {
+        const turns = Array.isArray(reportData) ? reportData : [];
+        for (const entry of turns) {
           const question = entry.question || '';
           const response = entry.response || '';
           if (question) {
@@ -83,27 +94,30 @@ export default function App() {
           },
         ]);
       } else {
-        // ── Review session ──────────────────────────────────────
+        const report = reportData?.report ? reportData.report : reportData;
         const userMsg: ChatMessageData = {
           id: uid(),
           role: 'user',
-          content: session.code.slice(0, 100),
-          code: session.code,
+          content: session.code_preview?.slice(0, 100) || 'Code review',
+          code: '',
           timestamp: Date.now(),
         };
-        // Handle both new format (object with `report` key) and old format (flat array)
-        const report = reportData?.report
-          ? reportData.report
-          : {
-              findings: Array.isArray(reportData) ? [] : (reportData?.findings || []),
-              summary: 'Past session',
-              rounds: 3,
-              participants: []
-            };
         const reportMsg: ChatMessageData = {
           id: uid(),
           role: 'report',
-          report,
+          report: report || {
+            session_id: session.id,
+            created_at: session.created_at,
+            findings: [],
+            summary: 'Past session',
+            risk_overview: '',
+            detailed_review: '',
+            remediation_roadmap: '',
+            rounds: 3,
+            participants: [],
+            agent_metrics: {},
+            token_usage: undefined as any,
+          },
           sessionId: session.id,
         };
         setMessages([userMsg, reportMsg]);
@@ -154,8 +168,7 @@ export default function App() {
    * Handle code submission — starts the SSE stream.
    */
   const handleSubmit = useCallback(
-    (code: string, files?: { filename: string; content: string }[], images?: { filename: string; content: string; mime_type: string }[], instruction?: string) => {
-      // Build the payload
+    (code: string, files?: { filename: string; content: string }[], images?: { filename: string; content: string; mime_type: string }[], instruction?: string, mode?: 'light' | 'full') => {
       const payload: StreamReviewRequest = {
         code: code || undefined,
         files: files?.map((f) => ({
@@ -165,6 +178,7 @@ export default function App() {
         })),
         images: images,
         instruction: instruction || undefined,
+        mode: mode || undefined,
       };
       streamPayloadRef.current = payload;
 
@@ -254,6 +268,7 @@ export default function App() {
           collapsed={sidebarCollapsed}
           onToggle={() => setSidebarCollapsed(!sidebarCollapsed)}
           refreshKey={refreshKey}
+          onOpenBenchmark={handleOpenBenchmark}
         />
         <div className="flex-1 flex flex-col min-w-0">
           {/* Header */}
@@ -279,8 +294,10 @@ export default function App() {
               New Session
             </button>
           </div>
-          {/* Chat / Live Council Status */}
-          {isLoading && streamPayloadRef.current ? (
+          {/* Benchmark Dashboard */}
+          {showBenchmark ? (
+            <BenchmarkDashboard onClose={handleCloseBenchmark} />
+          ) : isLoading && streamPayloadRef.current ? (
             <div className="flex-1 overflow-y-auto scrollbar-retro">
               <LiveCouncilStatus
                 isRunning={isLoading}

@@ -1,15 +1,15 @@
 import { useRef, useEffect, useState, useCallback } from 'react';
 import type { ChatMessageData } from '../types';
 import { AGENTS } from '../types';
+import { sendChatMessage } from '../api/council';
 
-// All 6 core agents serve both code review and general chat
 const CORE_AGENTS = AGENTS;
 import ChatMessage from './ChatMessage';
 import ChatInput from './ChatInput';
 
 interface ChatViewProps {
   messages: ChatMessageData[];
-  onSubmit: (code: string, files?: { filename: string; content: string }[], images?: { filename: string; content: string; mime_type: string }[], instruction?: string) => void;
+  onSubmit: (code: string, files?: { filename: string; content: string }[], images?: { filename: string; content: string; mime_type: string }[], instruction?: string, mode?: 'light' | 'full') => void;
   onChatSubmit: (message: string, files?: { filename: string; content: string; language?: string }[], images?: { filename: string; content: string; mime_type: string }[]) => void;
   disabled: boolean;
   sessionId?: string;
@@ -45,35 +45,9 @@ export default function ChatView({ messages, onSubmit, onChatSubmit, disabled, s
     if (!question.trim() || !sessionId) return;
     setFollowUpLoading(true);
 
-    // Build context from the report
-    const reportMsg = messages.find(m => m.role === 'report');
-    const context = reportMsg?.report
-      ? JSON.stringify(reportMsg.report.findings.slice(0, 5))
-      : '';
-
     try {
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 30000);
-
-      const res = await fetch('/api/chat', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          session_id: sessionId,
-          message: question,
-          context,
-        }),
-        signal: controller.signal,
-      });
-
-      clearTimeout(timeoutId);
-
-      if (!res.ok) {
-        const errorData = await res.json().catch(() => ({}));
-        throw new Error(errorData.detail || `HTTP ${res.status}`);
-      }
-      const data = await res.json();
-      setFollowUpResponse(data.response || 'I could not generate a response.');
+      const response = await sendChatMessage(question, sessionId, undefined, undefined, undefined);
+      setFollowUpResponse(response.response || 'I could not generate a response.');
     } catch (err: unknown) {
       if (err instanceof DOMException && err.name === 'AbortError') {
         setFollowUpResponse('Request timed out after 30 seconds. Please try again.');
@@ -82,7 +56,7 @@ export default function ChatView({ messages, onSubmit, onChatSubmit, disabled, s
       }
     }
     setFollowUpLoading(false);
-  }, [sessionId, messages]);
+  }, [sessionId]);
 
   return (
     <div className="flex flex-col flex-1 overflow-hidden">

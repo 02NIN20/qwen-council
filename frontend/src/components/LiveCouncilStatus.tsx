@@ -85,9 +85,9 @@ export default function LiveCouncilStatus({
 
   const [elapsed, setElapsed] = useState(0);
   const [statusText, setStatusText] = useState('Initializing council...');
-  const [negotiationActive, setNegotiationActive] = useState(false);
-  const [negotiationResolved, setNegotiationResolved] = useState(0);
   const [hasCompleted, setHasCompleted] = useState(false);
+  const [earlyExit, setEarlyExit] = useState<{ round: number; reason: string; totalFindings: number } | null>(null);
+  const [budgetExhausted, setBudgetExhausted] = useState(false);
 
   /* ── Refs ───────────────────────────────────────────────────────── */
 
@@ -145,9 +145,9 @@ export default function LiveCouncilStatus({
     });
     setElapsed(0);
     setStatusText('Initializing council...');
-    setNegotiationActive(false);
-    setNegotiationResolved(0);
     setHasCompleted(false);
+    setEarlyExit(null);
+    setBudgetExhausted(false);
 
     startTimer();
 
@@ -217,15 +217,14 @@ export default function LiveCouncilStatus({
         setStatusText(`Synthesizing — ${consolidatedCount} consolidated findings`);
       },
 
-      onNegotiationStart: (disputedCount) => {
-        setNegotiationActive(true);
-        setStatusText(`Negotiating ${disputedCount} disputed findings...`);
+      onEarlyExit: (round, reason, totalFindings) => {
+        setEarlyExit({ round, reason, totalFindings });
+        setStatusText(`Early exit — Round ${round}: ${reason}`);
       },
 
-      onNegotiationComplete: (resolved) => {
-        setNegotiationResolved(resolved);
-        setNegotiationActive(false);
-        setStatusText(`Negotiation complete — ${resolved} resolved`);
+      onBudgetExhausted: (_round, remaining) => {
+        setBudgetExhausted(true);
+        setStatusText(`Budget exhausted — cost remaining: $${remaining.cost_remaining.toFixed(2)}`);
       },
 
       onComplete: (sessionId, report) => {
@@ -372,18 +371,17 @@ export default function LiveCouncilStatus({
           ))}
         </div>
 
-        {/* Negotiation status (if active) */}
-        {negotiationActive && (
-          <div className="flex items-center gap-2 px-2.5 py-1.5 border border-retro-yellow/50 bg-retro-yellow/5 text-xs text-retro-yellow font-mono mb-4">
-            <span className="w-1.5 h-1.5 bg-retro-yellow status-dot" />
-            <span>Negotiating disputed findings...</span>
+        {/* Early exit notice */}
+        {earlyExit && (
+          <div className="px-2.5 py-1.5 border border-retro-yellow/50 bg-retro-yellow/5 text-xs text-retro-yellow font-mono mb-4">
+            ⚡ Early exit after Round {earlyExit.round}: {earlyExit.reason} ({earlyExit.totalFindings} findings)
           </div>
         )}
 
-        {/* Negotiation complete */}
-        {negotiationResolved > 0 && !negotiationActive && (
-          <div className="px-2.5 py-1.5 border border-retro-green/30 text-xs text-retro-green/80 font-mono mb-4">
-            ✓ {negotiationResolved} disputed finding{negotiationResolved !== 1 ? 's' : ''} resolved
+        {/* Budget exhausted notice */}
+        {budgetExhausted && (
+          <div className="px-2.5 py-1.5 border border-retro-red/50 bg-retro-red/5 text-xs text-retro-red font-mono mb-4">
+            ! Budget exhausted — review may be incomplete
           </div>
         )}
 

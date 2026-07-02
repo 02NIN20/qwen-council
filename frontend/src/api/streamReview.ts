@@ -7,6 +7,8 @@ export interface StreamReviewRequest {
   files?: { filename: string; content: string; language?: string }[];
   images?: { filename: string; content: string; mime_type: string }[];
   instruction?: string;
+  mode?: 'light' | 'full';
+  session_id?: string;
 }
 
 export interface StreamReviewResponse {
@@ -19,9 +21,9 @@ export interface StreamCallbacks {
   onAgentStart?: (agent: string, round: number) => void;
   onAgentComplete?: (agent: string, round: number, findingsCount: number) => void;
   onRoundComplete?: (round: number, totalFindings: number) => void;
-  onSynthesisComplete?: (consolidatedCount: number) => void;
-  onNegotiationStart?: (disputedCount: number) => void;
-  onNegotiationComplete?: (resolved: number) => void;
+  onEarlyExit?: (round: number, reason: string, totalFindings: number) => void;
+  onBudgetExhausted?: (round: number, remaining: { input_remaining: number; output_remaining: number; cost_remaining: number }) => void;
+  onSynthesisComplete?: (findingsCount: number) => void;
   onComplete?: (sessionId: string, report: Report) => void;
   onError?: (error: string) => void;
 }
@@ -73,19 +75,22 @@ function dispatchEvent(
       callbacks.onRoundComplete?.(round, totalFindings);
       break;
     }
+    case 'early_exit': {
+      const round = Number(data.round ?? 0);
+      const reason = String(data.reason ?? '');
+      const totalFindings = Number(data.total_findings ?? 0);
+      callbacks.onEarlyExit?.(round, reason, totalFindings);
+      break;
+    }
+    case 'budget_exhausted': {
+      const round = Number(data.round ?? 0);
+      const remaining = data.remaining as { input_remaining: number; output_remaining: number; cost_remaining: number };
+      callbacks.onBudgetExhausted?.(round, remaining);
+      break;
+    }
     case 'synthesis_complete': {
-      const consolidatedCount = Number(data.consolidated_count ?? 0);
-      callbacks.onSynthesisComplete?.(consolidatedCount);
-      break;
-    }
-    case 'negotiation_start': {
-      const disputedCount = Number(data.disputed_count ?? 0);
-      callbacks.onNegotiationStart?.(disputedCount);
-      break;
-    }
-    case 'negotiation_complete': {
-      const resolved = Number(data.resolved ?? 0);
-      callbacks.onNegotiationComplete?.(resolved);
+      const findingsCount = Number(data.findings_count ?? 0);
+      callbacks.onSynthesisComplete?.(findingsCount);
       break;
     }
     case 'complete': {
@@ -107,7 +112,7 @@ function dispatchEvent(
 
 /* ─── Main streaming function ──────────────────────────────────────── */
 
-const API_BASE = '/api';
+const API_BASE = '/api/v1';
 
 /**
  * Subscribes to the SSE streaming endpoint (`POST /api/review/stream`)

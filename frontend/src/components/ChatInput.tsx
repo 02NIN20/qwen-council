@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect, useCallback, type DragEvent, type ChangeEvent } from 'react';
 
 interface ChatInputProps {
-  onSubmit: (code: string, files: { filename: string; content: string }[], images?: { filename: string; content: string; mime_type: string }[], instruction?: string) => void;
+  onSubmit: (code: string, files: { filename: string; content: string }[], images?: { filename: string; content: string; mime_type: string }[], instruction?: string, mode?: 'light' | 'full') => void;
   onChatSubmit: (message: string, files?: { filename: string; content: string; language?: string }[], images?: { filename: string; content: string; mime_type: string }[]) => void;
   disabled: boolean;
   /** Show simplified follow-up mode (no file attach, chat-only) */
@@ -217,49 +217,49 @@ export default function ChatInput({ onSubmit, onChatSubmit, disabled, followUpMo
       return;
     }
 
-    // Build message with file context
-    let messageText = chatText.trim();
+    const messageText = chatText.trim();
 
-    // If files or images are attached → add as context to chat message
-    if (files.length > 0 || images.length > 0) {
-      const fileSummaries = files.map((f) => `[File: ${f.name} (${f.content.length} chars)]`).join('\n');
-      const imageSummaries = images.map((img) => `[Image: ${img.name} (${img.mime_type})]`).join('\n');
-
-      // Prepend file context to the message
-      const attachments = [fileSummaries, imageSummaries].filter(Boolean).join('\n');
-      if (messageText) {
-        messageText = `${attachments}\n\n${messageText}`;
-      } else {
-        messageText = `${attachments}\n\nPlease analyze this file${files.length > 1 ? 's' : ''}.`;
-      }
-
-      // Create file payload for the API
+    // Code files attached → route as code review (onSubmit → /review/stream)
+    if (files.length > 0) {
       const filePayload = files.map((f) => ({
         filename: f.name,
         content: f.content,
         language: f.name.split('.').pop(),
       }));
-      // Create image payload
       const imagePayload = images.length > 0 ? images.map((img) => ({
         filename: img.name,
         content: img.content,
         mime_type: img.mime_type,
       })) : undefined;
 
-      // Send to chat with files and images
-      onChatSubmit?.(messageText, filePayload, imagePayload);
+      // Use first file content as code if no separate code text
+      const code = '';
+      onSubmit(code, filePayload, imagePayload, messageText || undefined);
       setFiles([]);
       setImages([]);
       setChatText('');
       return;
     }
 
-    // If text only → general chat mode
+    // Only images attached (no code files) → route as chat
+    if (images.length > 0) {
+      const imagePayload = images.map((img) => ({
+        filename: img.name,
+        content: img.content,
+        mime_type: img.mime_type,
+      }));
+      onChatSubmit?.(messageText, undefined, imagePayload);
+      setImages([]);
+      setChatText('');
+      return;
+    }
+
+    // Text only → general chat mode
     if (messageText) {
       onChatSubmit(messageText);
       setChatText('');
     }
-  }, [files, images, chatText, disabled, onChatSubmit, followUpMode, onFollowUpSubmit]);
+  }, [files, images, chatText, disabled, onSubmit, onChatSubmit, followUpMode, onFollowUpSubmit]);
 
   const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
     if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {

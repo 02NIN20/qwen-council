@@ -1,4 +1,4 @@
-# Qwen Council — Benchmark Results
+# Multi-Agent Council — Benchmark Results
 
 ## Methodology
 

@@ -1,4 +1,4 @@
-# Qwen Council — Implementation Plan
+# Multi-Agent Council — Implementation Plan
 
 ## Project Information
 
@@ -10,7 +10,7 @@
 
 ## Concept
 
-**Qwen Council** is a multi-agent system where 5 specialised agents with persistent memory collaboratively debate to perform code review. The key innovation is an **inter-agent communication protocol** based on cognitive linguistics principles (Inverted Pyramid, Given-New, high cohesion, self-sufficiency), where each message between agents is structured to minimise ambiguity and maximise debate efficiency.
+**Multi-Agent Council** is a multi-agent system where 6 role-based core agents with 15 sub-agents and 4 tools collaboratively debate to perform code review and advanced analysis. The key innovation is an **inter-agent communication protocol** based on cognitive linguistics principles (Inverted Pyramid, Given-New, high cohesion, self-sufficiency), where each message between agents is structured to minimise ambiguity and maximise debate efficiency.
 
 ---
 

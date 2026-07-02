@@ -1,4 +1,4 @@
-# Qwen Council — MCP Server Setup
+# Multi-Agent Council — MCP Server Setup
 
 Connect the Agent Society to any MCP-compatible client:
 - **OpenCode**

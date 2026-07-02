@@ -1,8 +1,8 @@
-# Qwen Council — System Architecture
+# Multi-Agent Council — System Architecture
 
 ## Overview
 
-Qwen Council is a **multi-agent Agent Society** deployed on Alibaba Cloud ECS, powered by Qwen Cloud APIs. Six role-based core agents with 15 specialised sub-agents and 4 tools collaborate via structured debate rounds to perform code review and answer questions.
+Multi-Agent Council is a **multi-agent Agent Society** deployed on Alibaba Cloud ECS, powered by Qwen Cloud APIs. Six role-based core agents with 15 specialised sub-agents and 4 tools collaborate via structured debate rounds to perform code review and answer questions.
 
 ![Architecture Diagram](architecture_diagram.png)
 

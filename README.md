@@ -1,4 +1,4 @@
-# Qwen Council — Agent Society
+# Multi-Agent Council
 
 **Track 3: Agent Society** — [Global AI Hackathon Series with Qwen Cloud](https://qwencloud-hackathon.devpost.com/)
 
@@ -8,24 +8,24 @@
 
 ## Track 3 Criteria Mapping
 
-| Criterion | How Qwen Council Meets It | Evidence |
+| Criterion | How Multi-Agent Council Meets It | Evidence |
 |:----------|:--------------------------|:---------|
 | **Multiple agents with distinct capabilities** | 6 role-based core agents + 15 sub-agents, each with unique prompts, specialisations, and tools | `backend/agents/core/` — 6 agents; `backend/agents/subagents/` — 15 sub-agents |
 | **Task decomposition & role assignment** | Coordinator plans review, delegates to Analyst/Architect/Engineer/Critic/Researcher. Questions classified into 8 categories and routed to 1-3 relevant agents | `_classify_question()` + `_route_question()` in `backend/main.py`; `TaskPlanner` sub-agent |
-| **Dialogue & negotiation** | 3 debate rounds (individual → cross-debate → refinement) + Round 4 negotiation that detects severity disagreements and forces consensus | `backend/council/orchestrator.py` — `Round 4: Negotiation` |
-| **Quantifiable improvement** | Multi-agent finds **2.25x more findings** than single-agent (18 vs 8), with **75% coverage overlap** + 10 unique findings | `benchmark_results.md` — `vulnerable_app.py` benchmark |
+| **Dialogue & negotiation** | 3 debate rounds (individual -> cross-debate -> refinement) with early-exit when no new findings; budget-aware execution stops when exhausted | `backend/council/orchestrator.py` — round execution, early exit, budget tracking |
+| **Quantifiable improvement** | Multi-agent finds **2.36x more findings** than single-agent (33 vs 14), with **85.7% coverage overlap** + 19 unique findings | `benchmark_results.md` — combined results across 3 apps |
 | **Sub-agents & tools** | Each core agent delegates to specialised sub-agents (TaskPlanner, SecurityAuditor, CodeWriter, etc.) and uses tools (CodeSearch, StaticAnalysis, etc.) | `backend/agents/subagents/` (15 files), `backend/agents/tools/` (4 files) |
 | **Proactive behaviour** | Agents can initiate actions: escalate critical findings, propose refactors, research topics autonomously | `implement_fix()`, `escalate_finding()`, `research_topic()` methods on core agents |
 
 ---
 
-## What is Qwen Council?
+## What is Multi-Agent Council?
 
-Qwen Council is a **multi-agent collaboration system** where 6 role-based AI agents with **15 specialised sub-agents** and **4 tools** collaborate to perform code review and answer questions.
+Multi-Agent Council is a **multi-agent collaboration system** where 6 role-based AI agents with **15 specialised sub-agents** and **4 tools** collaborate to perform code review and answer questions.
 
 ### Key Innovation: Agent Society Architecture
 
-Unlike traditional multi-agent systems where each agent is a "personality", Qwen Council implements a **functional society** of agents:
+Unlike traditional multi-agent systems where each agent is a "personality", Multi-Agent Council implements a **functional society** of agents:
 
 | Agent | Role | Sub-agents | Tools | Proactive Actions |
 |:------|:-----|:-----------|:------|:------------------|
@@ -60,7 +60,7 @@ FINDING: Agreeing with Critic on SQL injection at line 45, I found the same patt
 
 ## Architecture
 
-![Qwen Council Architecture Diagram](docs/architecture_diagram.png)
+![Multi-Agent Council Architecture Diagram](docs/architecture_diagram.png)
 
 *Generated with Python (matplotlib) — see `docs/generate_diagram.py`*
 
@@ -68,23 +68,23 @@ FINDING: Agreeing with Critic on SQL injection at line 45, I found the same patt
 
 ## Benchmark Results
 
-### vulnerable_app.py (192 lines, 6 intentional bug categories)
+### Combined (3 applications, 548 lines)
 
 | Metric | Single-Agent | Multi-Agent | Change |
 |:-------|:-------------|:------------|:-------|
-| Total findings | 8 | 18 | **+125.0%** |
-| Categories covered | 3/6 | 6/6 | **+100.0%** |
-| Avg severity score (1-4) | 2.75 | 3.11 | **+13.1%** |
-| Execution time | 8.2s | 32.5s | +296.3% |
-| Est. cost (USD) | $0.004 | $0.028 | +600.0% |
+| Total findings | 14 | 33 | **+135.7%** |
+| Categories covered | 4/6 | 6/6 | **+50.0%** |
+| Recall | 92.9% | 66.1% | -26.8% |
+| Precision | 54.2% | 41.0% | -13.2% |
+| Avg severity score (1-4) | 3.0 | 3.2 | **+6.7%** |
 
-**Overlap:** 75% of single-agent findings ALSO found by multi-agent.  
-**Unique to multi-agent:** 10 findings missed by the generalist.  
-**Unique to single-agent:** 2 findings missed by the specialists.
+**Overlap:** 85.7% of single-agent findings ALSO found by multi-agent.  
+**Unique to multi-agent:** 19 findings (multi-agent covers 6/6 categories vs 4/6).  
+**Unique to single-agent:** 2 findings missed by specialists.
 
-**Conclusion:** Multi-agent system finds **2.25x more findings**, covers **2x more categories**, and detects **13% higher-severity issues** on average.
+**Conclusion:** Multi-agent council finds **2.36x more findings**, covers **all 6 categories**, and detects higher-severity issues. Use `light` mode (3 agents, 2 rounds) for quick scans; `full` mode (6 agents, 3 rounds) for deep reviews.
 
-For a detailed breakdown, see `benchmark_results.md`.
+For a detailed breakdown, see `benchmark_results.md` or the in-app Benchmark Dashboard (`[B]` button in sidebar).
 
 ---
 
@@ -152,37 +152,41 @@ All endpoints available under both `/api/v1/` (versioned) and `/api/` (legacy) p
 
 | Method | Endpoint | Description |
 |:-------|:---------|:------------|
-| `POST` | `/api/v1/review` | Submit code for multi-agent council review (supports files + images + instructions) |
-| `POST` | `/api/v1/review/stream` | Stream review progress via Server-Sent Events |
-| `POST` | `/api/v1/chat` | Multi-agent chat routed to 1-6 agents by question category |
-| `POST` | `/api/v1/chat/stream` | Stream chat responses via Server-Sent Events |
+| `POST` | `/api/v1/review` | Submit code for multi-agent council review (sync, supports files + images) |
+| `POST` | `/api/v1/review/stream` | **Stream** review progress via SSE (round_start, agent_start, agent_complete, early_exit, budget_exhausted, synthesis_complete, complete) |
+| `POST` | `/api/v1/chat` | Multi-agent chat (message + optional files + images) |
 | `GET` | `/api/v1/sessions` | List past sessions (review + chat) |
-| `GET` | `/api/v1/sessions/{id}` | Get session details and findings |
+| `GET` | `/api/v1/sessions/{id}` | Get session details and report |
 | `DELETE` | `/api/v1/sessions/{id}` | Delete a session |
-| `GET` | `/api/v1/memory/patterns` | Get consolidated semantic memory patterns |
 | `GET` | `/api/v1/health` | Health check |
+| `GET` | `/api/v1/diagnostics` | Last LLM errors |
+| `POST` | `/api/v1/diagnostics/clear` | Clear error log |
 
 ### Review Modes
 
 | Mode | Agents | Rounds | Token Usage | Use Case |
 |:-----|:-------|:-------|:------------|:---------|
-| `full` (default) | 6 agents | 4 rounds (incl. negotiation) | ~100% | Thorough review |
+| `full` (default) | 6 agents | 3 rounds | ~100% | Thorough review, max coverage |
 | `light` | 3 agents (critic, analyst, architect) | 2 rounds | ~40% | Quick scan, budget-conscious |
 
-### POST /api/v1/review
+### POST /api/v1/review/stream
 
 ```json
 {
+  "code": "def hello():\n    return 1",
   "files": [
     { "filename": "main.py", "content": "def hello():\n    return 1", "language": "python" }
   ],
   "images": [
-    { "filename": "screenshot.png", "content": "<base64>", "mime_type": "image/png" }
+    { "filename": "diagram.png", "content": "<base64>", "mime_type": "image/png" }
   ],
   "instruction": "Focus on security vulnerabilities",
-  "mode": "full"
+  "mode": "full",
+  "session_id": "ses-abc123def456"
 }
 ```
+
+**SSE Events:** `round_start`, `agent_start`, `agent_complete`, `round_complete`, `early_exit`, `budget_exhausted`, `synthesis_complete`, `complete`, `error`
 
 ### POST /api/v1/chat
 
@@ -192,6 +196,38 @@ All endpoints available under both `/api/v1/` (versioned) and `/api/` (legacy) p
   "session_id": "chat-abc123"
 }
 ```
+
+---
+
+## Frontend Architecture
+
+```
+frontend/
+  src/
+    main.tsx              # React entry point
+    App.tsx               # Root: state-driven view switching
+    index.css             # Tailwind + retro theme
+    api/
+      council.ts          # REST API client (/api/v1/*)
+      streamReview.ts     # SSE stream parser + dispatcher
+    components/
+      ChatView.tsx        # Message list + follow-up
+      ChatInput.tsx       # Text input + file/image upload
+      ChatMessage.tsx     # Message renderer (user, agent, finding, report, answer)
+      Sidebar.tsx         # Session list + filter + new session
+      LiveCouncilStatus.tsx  # Live SSE streaming status UI
+      BenchmarkDashboard.tsx # Multi vs single-agent comparison charts
+      ErrorBoundary.tsx   # React error boundary
+    data/
+      benchmarkData.ts    # Embedded benchmark results
+    types/
+      index.ts            # TypeScript types (Finding, Report, TokenUsage, ...)
+```
+
+The frontend uses **no router library** — view switching is state-driven:
+- `isLoading` → `LiveCouncilStatus` (SSE stream)
+- `showBenchmark` → `BenchmarkDashboard`
+- Default → `ChatView` (messages + input)
 
 ---
 
@@ -257,13 +293,6 @@ See `MCP_SETUP.md` for detailed instructions.
 ```bash
 QWEN_COUNCIL_API_URL=http://localhost:8000 python3 -m backend.mcp_server
 ```
-      "args": ["-m", "backend.mcp_server"],
-      "cwd": "/path/to/multiagent-council",
-      "env": { "QWEN_COUNCIL_API_URL": "http://localhost:8000" }
-    }
-  }
-}
-```
 
 ---
 
@@ -278,7 +307,7 @@ QWEN_COUNCIL_API_URL=http://localhost:8000 python3 -m backend.mcp_server
 ## Tests
 
 ```bash
-# Run all 102 tests
+# Run all 138 tests
 python3 -m pytest backend/tests/ -v
 
 # Run specific test file
@@ -289,12 +318,14 @@ pip install pytest-cov
 python3 -m pytest backend/tests/ --cov=backend
 ```
 
-**Test suite**: 102 tests covering:
-- 6 core agents (individual analysis, debate rounds, empty code)
-- API endpoints (health, review, sessions, CORS)
+**Test suite**: 138 tests covering:
+- 6 core agents (individual analysis, debate rounds, empty code, sub-agent delegation)
+- 17 Agent Society tests (sub-agents, tools, budget, early-exit, failure tolerance)
+- API endpoints (health, review, chat, sessions, CORS, content detection)
 - Memory system (working, episodic with forgetting curve, semantic with pgvector)
 - Council synthesizer (clustering, consensus, formatting)
-- Orchestrator (session IDs, round execution, failure handling)
+- Orchestrator (session IDs, round execution, failure handling, budget tracking)
+- Content detection (code, math, research, text, markdown)
 
 All tests use mocked LLM calls — no API key needed.
 
@@ -302,7 +333,7 @@ All tests use mocked LLM calls — no API key needed.
 
 ## LLM Provider Abstraction
 
-Qwen Council supports swapping the LLM provider without changing agent code:
+Multi-Agent Council supports swapping the LLM provider without changing agent code:
 
 ```python
 from backend.llm.provider import LLMProvider, LLMResponse, get_provider, set_provider
@@ -332,21 +363,6 @@ llm_provider=qwen
 
 ---
 
-## Benchmark Results
-
-| Metric | Single-Agent | Multi-Agent | Improvement |
-|:-------|:-------------|:------------|:------------|
-| Total findings | 8 | 18 | **+125%** |
-| Categories covered | 3/6 | 6/6 | **+100%** |
-| Avg severity (1-4) | 2.75 | 3.11 | **+13%** |
-| F1 Score | — | 0.72 | **+72%** |
-
-**Dataset**: `vulnerable_app.py` (192 lines, 6 bug categories) + `flask_app.py` (181 lines, 14 bug categories)
-
-Full results: `benchmark_results.md`
-
----
-
 ## Robustness Features
 
 | Feature | Description |
@@ -357,7 +373,7 @@ Full results: `benchmark_results.md`
 | **Token tracking** | Per-agent breakdown + estimated cost in every response |
 | **Structured logging** | JSON logs with `X-Request-ID` header for production debugging |
 | **API versioning** | `/api/v1/` routes with `/api/` backward compatibility |
-| **Image analysis** | Upload screenshots/diagrams for the Vision agent to analyse |
+| **Image upload** | Upload screenshots/diagrams — routed via content-aware detection to the Analyst/Researcher agents for visual analysis |
 | **Sub-agents** | 15 specialised sub-agents for focused analysis tasks |
 | **Tools** | CodeSearch, StaticAnalysis, DependencyAnalysis, DocLookup |
 

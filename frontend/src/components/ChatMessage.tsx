@@ -11,6 +11,7 @@ import type {
   RoundTransitionMessage,
   AnswerMessage,
   AgentContribution,
+  TokenUsage,
 } from '../types';
 import { AGENTS } from '../types';
 
@@ -297,10 +298,80 @@ function FindingView({ message }: { message: FindingMessage }) {
   );
 }
 
+function TokenUsageBadge({ usage }: { usage: TokenUsage }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <div className="border border-retro-border mb-3">
+      <button
+        onClick={() => setOpen(!open)}
+        className="w-full flex items-center justify-between gap-2 px-3 py-2 text-[10px] font-bold text-gray-500 hover:text-retro-cyan hover:bg-retro-bg transition-colors uppercase tracking-wider"
+        aria-expanded={open}
+      >
+        <span>&gt; TOKEN USAGE &mdash; {usage.total_tokens.toLocaleString()} tokens &middot; ${usage.estimated_cost_usd.toFixed(2)}</span>
+        <svg className={`w-3 h-3 transition-transform duration-200 ${open ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+        </svg>
+      </button>
+      {open && (
+        <div className="px-3 pb-3 border-t border-retro-border pt-2 space-y-2 text-[11px] font-mono">
+          <div className="flex justify-between text-gray-500">
+            <span>Model</span>
+            <span className="text-gray-300">{usage.model}</span>
+          </div>
+          <div className="flex justify-between text-gray-500">
+            <span>Total input</span>
+            <span className="text-gray-300">{usage.total_input_tokens.toLocaleString()}</span>
+          </div>
+          <div className="flex justify-between text-gray-500">
+            <span>Total output</span>
+            <span className="text-gray-300">{usage.total_output_tokens.toLocaleString()}</span>
+          </div>
+          <div className="flex justify-between text-gray-500">
+            <span>Estimated cost</span>
+            <span className="text-retro-cyan">${usage.estimated_cost_usd.toFixed(2)}</span>
+          </div>
+          {usage.budget && (
+            <>
+              <div className="border-t border-retro-border pt-1 mt-1">
+                <p className="text-[10px] text-retro-cyan font-bold uppercase tracking-wider mb-1">Budget</p>
+                <div className="flex justify-between text-gray-500">
+                  <span>Max input</span>
+                  <span className="text-gray-300">{usage.budget.config.max_input_tokens.toLocaleString()}</span>
+                </div>
+                <div className="flex justify-between text-gray-500">
+                  <span>Max output</span>
+                  <span className="text-gray-300">{usage.budget.config.max_output_tokens.toLocaleString()}</span>
+                </div>
+                <div className="flex justify-between text-gray-500">
+                  <span>Max cost</span>
+                  <span className="text-gray-300">${usage.budget.config.max_cost_usd.toFixed(2)}</span>
+                </div>
+                {usage.budget.exhausted && (
+                  <p className="text-retro-red text-[10px] mt-1">Budget exhausted</p>
+                )}
+              </div>
+              {usage.budget.per_call.length > 0 && (
+                <div className="border-t border-retro-border pt-1 mt-1">
+                  <p className="text-[10px] text-retro-cyan font-bold uppercase tracking-wider mb-1">Per-call breakdown</p>
+                  {usage.budget.per_call.map((call, i) => (
+                    <div key={i} className="flex justify-between text-gray-500 text-[10px]">
+                      <span>{call.label}</span>
+                      <span className="text-gray-400">{call.input_tokens + call.output_tokens} tok / ${call.cost_usd.toFixed(4)}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function ReportView({ message }: { message: ReportMessage }) {
   const { report, sessionId } = message;
 
-  // Count by severity
   const counts: Record<string, number> = { Critical: 0, High: 0, Medium: 0, Low: 0 };
   for (const f of report.findings) {
     if (counts[f.impact] !== undefined) counts[f.impact]++;
@@ -308,19 +379,16 @@ function ReportView({ message }: { message: ReportMessage }) {
   }
   const totalFindings = report.findings.length;
 
-  // Extract possible file names from findings
   function extractFile(text: string): string | null {
     const match = text.match(/`([\w\/.-]+\.[a-z]+)`/);
     return match ? match[1] : null;
   }
 
-  // Group findings by detected file
   const fileGroups: Record<string, { findings: typeof report.findings; counts: Record<string, number> }> = {};
   let otherFindings: typeof report.findings = [];
 
   for (const f of report.findings) {
-    const file =
-      extractFile(f.detail) || extractFile(f.title);
+    const file = extractFile(f.detail) || extractFile(f.title);
     if (file) {
       if (!fileGroups[file]) {
         fileGroups[file] = { findings: [], counts: { Critical: 0, High: 0, Medium: 0, Low: 0 } };
@@ -339,19 +407,8 @@ function ReportView({ message }: { message: ReportMessage }) {
     ? fileGroups[filterFile]?.findings ?? []
     : report.findings;
 
-  // Calculate average consensus
-  const avgConsensus =
-    totalFindings > 0
-      ? Math.round(
-          (report.findings.reduce((sum, f) => sum + f.consensus_score, 0) /
-            totalFindings) *
-            100
-        )
-      : 0;
-
   return (
     <div className="message-enter">
-      {/* Report header */}
       <div className="flex items-center gap-3 mb-3 px-1">
         <span className="text-sm font-bold text-retro-cyan uppercase tracking-wider">
           &gt; CONSOLIDATED REPORT
@@ -388,9 +445,47 @@ function ReportView({ message }: { message: ReportMessage }) {
           ))}
         </div>
         <div className="text-[10px] text-gray-600 font-mono">
-          Total: {totalFindings} finding{totalFindings !== 1 ? 's' : ''} &middot; Consensus: {avgConsensus}%
+          Total: {totalFindings} finding{totalFindings !== 1 ? 's' : ''}
         </div>
       </div>
+
+      {/* Risk overview */}
+      {report.risk_overview && (
+        <div className="finding-item mb-3">
+          <p className="text-[10px] text-retro-cyan font-bold uppercase tracking-wider mb-1">
+            &gt; RISK OVERVIEW
+          </p>
+          <p className="text-sm text-gray-300 leading-relaxed whitespace-pre-wrap">
+            {report.risk_overview}
+          </p>
+        </div>
+      )}
+
+      {/* Detailed review */}
+      {report.detailed_review && (
+        <CollapsibleSection title="DETAILED REVIEW">
+          <p className="text-sm text-gray-300 leading-relaxed whitespace-pre-wrap">
+            {report.detailed_review}
+          </p>
+        </CollapsibleSection>
+      )}
+
+      {/* Remediation roadmap */}
+      {report.remediation_roadmap && (
+        <div className="finding-item mb-3">
+          <p className="text-[10px] text-retro-cyan font-bold uppercase tracking-wider mb-1">
+            &gt; REMEDIATION ROADMAP
+          </p>
+          <p className="text-sm text-gray-300 leading-relaxed whitespace-pre-wrap">
+            {report.remediation_roadmap}
+          </p>
+        </div>
+      )}
+
+      {/* Token usage */}
+      {report.token_usage && (
+        <TokenUsageBadge usage={report.token_usage} />
+      )}
 
       {/* Findings by file */}
       {Object.keys(fileGroups).length > 0 && (
@@ -419,13 +514,10 @@ function ReportView({ message }: { message: ReportMessage }) {
                       <span key={sev} className="ml-2 text-[10px]">
                         <span
                           className={
-                            sev === 'Critical'
-                              ? 'text-retro-red'
-                              : sev === 'High'
-                                ? 'text-retro-orange'
-                                : sev === 'Medium'
-                                  ? 'text-retro-yellow'
-                                  : 'text-retro-green'
+                            sev === 'Critical' ? 'text-retro-red'
+                            : sev === 'High' ? 'text-retro-orange'
+                            : sev === 'Medium' ? 'text-retro-yellow'
+                            : 'text-retro-green'
                           }
                         >
                           {c} {sev}
@@ -455,10 +547,10 @@ function ReportView({ message }: { message: ReportMessage }) {
         </div>
       )}
 
-      {/* Consolidated findings */}
+      {/* Findings list */}
       <div className="space-y-2">
         {filteredFindings.map((finding, idx) => {
-          const voteEntries = Object.entries(finding.votes);
+          const agentMeta = AGENTS.find((a) => a.id === finding.agent);
           return (
             <div key={idx} className="finding-item">
               <button
@@ -471,19 +563,16 @@ function ReportView({ message }: { message: ReportMessage }) {
                   <span className="text-xs text-gray-600 font-mono flex-shrink-0">
                     [{idx + 1}]
                   </span>
-        <SeverityBadge severity={finding.impact} />
+                  <SeverityBadge severity={finding.impact} />
                   <span className="text-sm font-bold text-gray-200 truncate">
-          {finding.title}
+                    {finding.title}
                   </span>
                 </div>
                 <svg
                   className={`w-3.5 h-3.5 text-gray-600 flex-shrink-0 transition-transform duration-200 ${
                     expandedIdx === idx ? 'rotate-180' : ''
                   }`}
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                  strokeWidth={2}
+                  fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}
                 >
                   <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
                 </svg>
@@ -491,6 +580,14 @@ function ReportView({ message }: { message: ReportMessage }) {
 
               {expandedIdx === idx && (
                 <div className="mt-2 pt-2 space-y-2 border-t border-retro-border">
+                  <div className="flex items-center gap-2 text-[10px] text-gray-600 font-mono mb-1">
+                    {agentMeta && (
+                      <span style={{ color: agentMeta.color }}>
+                        [{agentMeta.icon}] {agentMeta.name}
+                      </span>
+                    )}
+                    <span className="text-gray-700">Round {finding.round_num}</span>
+                  </div>
                   <p className="text-sm text-gray-400">
                     <span className="text-retro-cyan font-bold text-[10px] uppercase tracking-wider">Detail: </span>
                     {finding.detail}
@@ -499,35 +596,6 @@ function ReportView({ message }: { message: ReportMessage }) {
                     <span className="text-retro-cyan font-bold text-[10px] uppercase tracking-wider">Proposal: </span>
                     {finding.proposal}
                   </p>
-                  {voteEntries.length > 0 && (
-                    <div>
-                      <span className="text-[10px] text-gray-600 font-bold uppercase tracking-wider">Votes: </span>
-                      <div className="flex flex-wrap gap-1.5 mt-1">
-                        {voteEntries.map(([agentId, vote]) => {
-                          const agent = AGENTS.find((a) => a.id === agentId);
-                          const sevClass = (sev: string) => {
-                            if (sev.toLowerCase().includes('critical') || sev.toLowerCase().includes('high')) return 'text-retro-red';
-                            if (sev.toLowerCase().includes('medium')) return 'text-retro-yellow';
-                            return 'text-retro-green';
-                          };
-                          return (
-                            <span
-                              key={agentId}
-                              className="inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 border border-retro-border bg-retro-bg text-gray-400 font-mono"
-                            >
-                              <span style={{ color: agent?.color ?? '#666' }}>{agentId}</span>
-                              : <span className={sevClass(vote)}>{vote}</span>
-                            </span>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  )}
-                  <div className="flex items-center gap-2 text-[10px] text-gray-600 font-mono">
-                    <span>Consensus: {Math.round(finding.consensus_score * 100)}%</span>
-                    <span className="text-retro-border">|</span>
-                    <span>{finding.consensus_level}</span>
-                  </div>
                 </div>
               )}
             </div>
@@ -535,7 +603,6 @@ function ReportView({ message }: { message: ReportMessage }) {
         })}
       </div>
 
-      {/* Session ID footer */}
       <p className="text-[10px] text-gray-700 font-mono text-center mt-3">
         SESSION: {sessionId}
       </p>

@@ -1,6 +1,6 @@
 import type { ReviewResponse, SessionDetail, SessionSummary, ChatResponse } from '../types';
 
-const API_BASE = '/api';
+const API_BASE = '/api/v1';
 
 async function fetchJson<T>(url: string, options?: RequestInit): Promise<T> {
   const response = await fetch(url, {
@@ -24,6 +24,8 @@ export async function submitReview(
   code: string,
   files?: { filename: string; content: string; language?: string }[],
   instruction?: string,
+  mode?: 'light' | 'full',
+  session_id?: string,
 ): Promise<ReviewResponse> {
   return fetchJson<ReviewResponse>(`${API_BASE}/review`, {
     method: 'POST',
@@ -31,12 +33,14 @@ export async function submitReview(
       code: code || undefined,
       files: files || undefined,
       instruction: instruction || undefined,
+      mode: mode || undefined,
+      session_id,
     }),
   });
 }
 
-export async function getSessions(): Promise<SessionSummary[]> {
-  return fetchJson<SessionSummary[]>(`${API_BASE}/sessions`);
+export async function getSessions(limit = 20): Promise<SessionSummary[]> {
+  return fetchJson<SessionSummary[]>(`${API_BASE}/sessions?limit=${limit}`);
 }
 
 export async function getSession(sessionId: string): Promise<SessionDetail> {
@@ -66,4 +70,8 @@ export async function deleteSession(sessionId: string): Promise<void> {
   await fetch(`${API_BASE}/sessions/${sessionId}`, {
     method: 'DELETE',
   });
+}
+
+export async function healthCheck(): Promise<{ status: string; version?: string; db_connected?: boolean }> {
+  return fetchJson(`${API_BASE}/health`);
 }

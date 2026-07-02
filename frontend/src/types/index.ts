@@ -1,58 +1,90 @@
 export interface Finding {
-  agent: string;
   title: string;
   detail: string;
   impact: 'Critical' | 'High' | 'Medium' | 'Low';
   proposal: string;
+  agent: string;
   round_num: number;
 }
 
-export interface ConsolidatedFinding {
-  title: string;
-  detail: string;
-  impact: string;
-  proposal: string;
-  votes: Record<string, string>;
-  consensus_level: string;
-  consensus_score: number;
+export interface AgentMetrics {
+  input_tokens: number;
+  output_tokens: number;
+  total_tokens: number;
+  findings_count: number;
+}
+
+export interface BudgetCall {
+  label: string;
+  input_tokens: number;
+  output_tokens: number;
+  cost_usd: number;
+}
+
+export interface BudgetInfo {
+  config: {
+    max_input_tokens: number;
+    max_output_tokens: number;
+    max_cost_usd: number;
+    max_rounds: number;
+  };
+  used: {
+    input_tokens: number;
+    output_tokens: number;
+    cost_usd: number;
+    call_count: number;
+  };
+  exhausted: boolean;
+  per_call: BudgetCall[];
+}
+
+export interface TokenUsage {
+  per_agent: Record<string, AgentMetrics>;
+  total_input_tokens: number;
+  total_output_tokens: number;
+  total_tokens: number;
+  estimated_cost_usd: number;
+  model: string;
+  budget: BudgetInfo;
 }
 
 export interface Report {
-  findings: ConsolidatedFinding[];
+  session_id: string;
+  created_at: string;
+  findings: Finding[];
   summary: string;
+  risk_overview: string;
+  detailed_review: string;
+  remediation_roadmap: string;
   rounds: number;
   participants: string[];
+  agent_metrics: Record<string, AgentMetrics>;
+  token_usage: TokenUsage;
 }
 
 export interface ReviewResponse {
   session_id: string;
   report: Report;
-  rounds_raw: {
+  round_data: {
     round_1: Record<string, Finding[]>;
     round_2: Record<string, Finding[]>;
     round_3: Record<string, Finding[]>;
-    context_preview?: string;
-    instruction?: string;
-    files?: { filename: string; size: number; language?: string }[];
-    report?: Report;
   };
 }
 
 export interface SessionDetail {
   id: string;
-  code: string;
+  code_preview: string;
+  finding_count: number;
   findings_json: any;
-  score: number;
   created_at: string;
-  last_referenced_at: string | null;
 }
 
 export interface SessionSummary {
   id: string;
   code_preview: string;
-  score: number;
-  created_at: string;
   finding_count: number;
+  created_at: string;
 }
 
 export interface FileContent {
