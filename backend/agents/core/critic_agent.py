@@ -265,7 +265,7 @@ class CriticAgent(BaseAgent):
         }
 
     async def answer_question(
-        self, question: str, context: str | None = None, content_type: str = "general"
+        self, question: str, context: str | None = None, content_type: str = "general", images: list[dict[str, str]] | None = None
     ) -> str:
         """Answer from critic perspective."""
-        return await super().answer_question(question, context, content_type=content_type)
+        return await super().answer_question(question, context, content_type=content_type, images=images)
