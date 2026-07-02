@@ -105,14 +105,22 @@ async def review_code(code: str, instruction: str = "", mode: str = "light") -> 
 
 
 @server.tool()
-async def chat(message: str) -> str:
+async def chat(message: str, images: list[dict[str, str]] | None = None) -> str:
     """Ask a question to the Agent Society (6 AI agents).
 
     The question is routed to 1-3 relevant agents depending on topic.
     Each agent answers from its role perspective, then answers are merged.
 
+    When images are provided, they are first analyzed by a vision model
+    (qwen-vl-plus) and the description is passed to all agents for
+    multi-perspective analysis.
+
     Args:
         message: Your question for the agents.
+        images: Optional list of image dicts with keys:
+                filename (str), content (base64 str), mime_type (str).
+                Example: [{"filename": "diagram.png", "content": "iVBOR...",
+                          "mime_type": "image/png"}]
     """
     try:
         from backend.main import _classify_question, _route_question, _synthesize_chat
@@ -132,13 +140,56 @@ async def chat(message: str) -> str:
             "researcher": ResearcherAgent(),
         }
 
+        # ── Vision pre-processing (same pipeline as HTTP API) ──
+        agent_context = ""
+        if images:
+            from openai import AsyncOpenAI
+            from backend.config import settings
+            vision_client = AsyncOpenAI(
+                api_key=settings.llm_api_key,
+                base_url=settings.llm_base_url or "https://dashscope-intl.aliyuncs.com/compatible-mode/v1",
+            )
+            vision_content: list[dict] = [
+                {"type": "text", "text": (
+                    f"Describe this image in detail. The user asked: \"{message}\". "
+                    "Provide a thorough visual analysis covering all relevant elements, "
+                    "text, diagrams, charts, UI components, or code visible in the image. "
+                    "Be specific and detailed."
+                )}
+            ]
+            for img in images:
+                mime = img.get("mime_type", "image/png")
+                content = img.get("content", "")
+                vision_content.append({
+                    "type": "image_url",
+                    "image_url": {"url": f"data:{mime};base64,{content}"},
+                })
+            try:
+                vision_response = await vision_client.chat.completions.create(
+                    model="qwen-vl-plus",
+                    messages=[
+                        {"role": "system", "content": "You are a visual analyst. Describe images thoroughly and accurately."},
+                        {"role": "user", "content": vision_content},
+                    ],
+                    max_tokens=2048,
+                )
+                vision_desc = vision_response.choices[0].message.content or ""
+                agent_context = (
+                    f"### Image Analysis (Vision Model Description):\n{vision_desc}\n\n"
+                    f"Use the description above as the visual reference. "
+                    f"Provide your expert perspective on what the image shows.\n"
+                )
+            except Exception as e:
+                agent_context = f"[Image description unavailable: {e}]"
+
         category = _classify_question(message)
-        selected = _route_question(category, has_images=False)
+        selected = _route_question(category, has_images=bool(images))
 
         import asyncio
         async def ask(name, agent):
             try:
-                ans = await agent.answer_question(message)
+                ctx = agent_context if agent_context else None
+                ans = await agent.answer_question(message, context=ctx)
                 return {"agent": name, "role": agent.role_description, "answer": ans}
             except Exception as e:
                 return {"agent": name, "role": "", "answer": f"[unavailable: {e}]"}

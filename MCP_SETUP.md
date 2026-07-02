@@ -31,7 +31,7 @@ For **Qwen Cloud** (requires API key):
 ```env
 llm_provider=qwen
 llm_api_key=sk-your-key
-llm_model=qwen-plus-latest
+llm_model=qwen-plus-2025-07-28
 ```
 
 For **OpenAI**:
@@ -87,7 +87,7 @@ Add to your Claude Desktop config (`claude_desktop_config.json`):
 | Tool | Description |
 |:-----|:------------|
 | `review_code(code, instruction, mode)` | Full multi-agent code review (6 agents, 3 rounds) |
-| `chat(message)` | Ask the 6-agent society any question |
+| `chat(message, images?)` | Ask the 6-agent society any question. Supports images via vision pipeline |
 | `analyze_file(filename, content, question)` | Analyze code or text files |
 | `generate_code(specification, language)` | Generate code from spec |
 | `implement_fix(code, issue)` | Fix code issues |
