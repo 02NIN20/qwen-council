@@ -2,7 +2,7 @@ import { useState, useRef, useEffect, useCallback, type DragEvent, type ChangeEv
 
 interface ChatInputProps {
   onSubmit: (code: string, files: { filename: string; content: string }[], images?: { filename: string; content: string; mime_type: string }[], instruction?: string) => void;
-  onChatSubmit: (message: string, files?: { filename: string; content: string; language?: string }[]) => void;
+  onChatSubmit: (message: string, files?: { filename: string; content: string; language?: string }[], images?: { filename: string; content: string; mime_type: string }[]) => void;
   disabled: boolean;
   /** Show simplified follow-up mode (no file attach, chat-only) */
   followUpMode?: boolean;
@@ -239,9 +239,15 @@ export default function ChatInput({ onSubmit, onChatSubmit, disabled, followUpMo
         content: f.content,
         language: f.name.split('.').pop(),
       }));
+      // Create image payload
+      const imagePayload = images.length > 0 ? images.map((img) => ({
+        filename: img.name,
+        content: img.content,
+        mime_type: img.mime_type,
+      })) : undefined;
 
-      // Send to chat with files
-      onChatSubmit?.(messageText, filePayload);
+      // Send to chat with files and images
+      onChatSubmit?.(messageText, filePayload, imagePayload);
       setFiles([]);
       setImages([]);
       setChatText('');

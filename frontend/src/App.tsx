@@ -198,7 +198,7 @@ export default function App() {
    * Supports optional file attachments for agent analysis.
    */
   const handleChatSubmit = useCallback(
-    async (question: string, files?: { filename: string; content: string; language?: string }[]) => {
+    async (question: string, files?: { filename: string; content: string; language?: string }[], images?: { filename: string; content: string; mime_type: string }[]) => {
       // Create user message with file context
       const userMsg: ChatMessageData = {
         id: uid(),
@@ -216,7 +216,7 @@ export default function App() {
       setIsLoading(true);
 
       try {
-        const response = await sendChatMessage(question, activeSessionId, undefined, files);
+        const response = await sendChatMessage(question, activeSessionId, undefined, files, images);
 
         // Create answer message with agent contributions
         const answerMsg: ChatMessageData = {

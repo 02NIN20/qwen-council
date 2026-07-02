@@ -222,6 +222,11 @@ class ChatRequest(BaseModel):
         max_length=20,
         description="Optional files for context",
     )
+    images: list[ImageFile] = Field(
+        default_factory=list,
+        max_length=5,
+        description="Optional image files for visual analysis",
+    )
 
 
 class AgentContribution(BaseModel):

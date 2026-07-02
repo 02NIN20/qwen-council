@@ -446,7 +446,7 @@ def _classify_question(question: str) -> str:
     return "general"
 
 
-def _route_question(category: str) -> list[dict[str, object]]:
+def _route_question(category: str, has_images: bool = False) -> list[dict[str, object]]:
     """Return the list of (name, agent_instance) pairs for a given category.
 
     Each agent is instantiated fresh so there are no shared state issues.
@@ -459,10 +459,10 @@ def _route_question(category: str) -> list[dict[str, object]]:
         "engineer": EngineerAgent(),
         "critic": CriticAgent(),
         "researcher": ResearcherAgent(),
+        "vision": VisionAgent(),
     }
 
     # Route table: category → which core agents to call
-    # Each agent brings a unique functional perspective
     routes = {
         "social":     ["coordinator"],
         "science":    ["analyst", "researcher"],
@@ -475,6 +475,9 @@ def _route_question(category: str) -> list[dict[str, object]]:
     }
 
     selected = routes.get(category, routes["general"])
+    # Always include vision agent when images are uploaded
+    if has_images and "vision" not in selected:
+        selected = selected + ["vision"]
     return [(name, agents[name]) for name in selected]
 
 
@@ -643,13 +646,33 @@ async def chat_general(
             file_context = "\n\n".join(file_parts)
             agent_context += f"\n### Uploaded files:\n{file_context}\n"
 
+        # Process images for vision agent
+        image_urls: list[str] = []
+        if payload.images:
+            for img in payload.images:
+                image_url = f"data:{img.mime_type};base64,{img.content}"
+                image_urls.append(image_url)
+            # Add image info to context for non-vision agents
+            img_summary = "\n".join(
+                f"- {img.filename} ({img.mime_type})" for img in payload.images
+            )
+            agent_context += f"\n### Uploaded images:\n{img_summary}\n"
+
         async def ask_agent(name: str, agent: object) -> dict:
             """Call a single agent's answer_question and return its contribution."""
             try:
-                answer = await agent.answer_question(  # type: ignore[union-attr]
-                    question=payload.message,
-                    context=agent_context if agent_context else None,
-                )
+                # Vision agent gets the actual image; others get text context only
+                if name == "vision" and image_urls:
+                    answer = await agent.answer_question(  # type: ignore[union-attr]
+                        question=payload.message,
+                        context=agent_context if agent_context else None,
+                        image_url=image_urls[0],
+                    )
+                else:
+                    answer = await agent.answer_question(  # type: ignore[union-attr]
+                        question=payload.message,
+                        context=agent_context if agent_context else None,
+                    )
                 return {
                     "agent": name,
                     "role_description": getattr(agent, "role_description", ""),
@@ -722,7 +745,7 @@ async def chat_stream(payload: ChatRequest):
     async def event_generator():
         try:
             category = _classify_question(payload.message)
-            selected_agents = _route_question(category)
+            selected_agents = _route_question(category, has_images=bool(payload.images))
 
             session_id = payload.session_id or f"chat-{uuid.uuid4().hex[:8]}"
 

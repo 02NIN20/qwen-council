@@ -24,7 +24,6 @@ class VisionAgent(BaseAgent):
     """
 
     def __init__(self) -> None:
-        # Use the VL model for vision, fall back to the default text model
         self._vision_model = "qwen-vl-max"
         super().__init__(
             name="vision",
@@ -34,7 +33,6 @@ class VisionAgent(BaseAgent):
         )
 
     def _build_system_prompt(self) -> str:
-        """Extended system prompt that covers both code and visual analysis."""
         return (
             f"You are an expert in {self.role_description}, specialised in visual code review. "
             "Your task is to analyse source code AND any provided screenshots or diagrams "
@@ -62,58 +60,90 @@ class VisionAgent(BaseAgent):
         round: int = 1,
         image_url: str | None = None,
     ) -> list[Finding]:
-        """Analyse code and/or image for visual/UX issues.
-
-        Parameters
-        ----------
-        code : str
-            Source code to review.
-        context : list[dict] | None
-            Findings from previous rounds for cross-debate.
-        round : int
-            Current debate round (1, 2, or 3).
-        image_url : str | None
-            URL or base64 data URI of a screenshot/diagram to analyse.
-
-        Returns
-        -------
-        list[Finding]
-            Zero or more findings in Inverted Pyramid format.
-        """
+        """Analyse code and/or image for visual/UX issues."""
         user_prompt = self._build_user_prompt(code, context, round)
         raw = await self._call_llm(user_prompt, image_url=image_url)
         return self._parse_findings(raw, round)
 
-    async def _call_llm(self, user_prompt: str, image_url: str | None = None) -> str:
-        """Call Qwen-VL with multimodal content if an image is available.
+    async def answer_question(self, question: str, context: str | None = None, image_url: str | None = None) -> str:
+        """Answer a question, using the vision model if an image is provided.
+
+        Overrides BaseAgent.answer_question() to support multimodal image analysis.
+        Called by the chat endpoint when a user uploads an image.
 
         Parameters
         ----------
-        user_prompt : str
-            The assembled prompt for the LLM.
+        question : str
+            The user's question about the image.
+        context : str | None
+            Optional additional context.
         image_url : str | None
-            Image URL to include as multimodal content. Passed directly (not
-            stored on ``self``) to avoid race conditions with shared agents.
+            Data URI of an image (e.g. "data:image/jpeg;base64,...").
+
+        Returns
+        -------
+        str
+            The agent's answer based on visual analysis.
         """
+        system_prompt = (
+            f"You are an expert in {self.role_description}. "
+            "Analyse the provided image and answer the user's question based on what you see. "
+            "Be specific and detailed about visual elements, diagrams, screenshots, or UI components. "
+            "If you cannot see an image, explain what you would need to see."
+        )
+
+        user_text = f"### Question:\n{question}\n"
+        if context:
+            user_text += f"\n### Context:\n{context}\n"
+
+        try:
+            messages: list[dict[str, Any]] = [
+                {"role": "system", "content": system_prompt},
+            ]
+
+            if image_url:
+                user_content: list[dict[str, Any]] = [
+                    {"type": "text", "text": user_text},
+                    {"type": "image_url", "image_url": {"url": image_url}},
+                ]
+                messages.append({"role": "user", "content": user_content})
+                model = self._vision_model
+            else:
+                messages.append({"role": "user", "content": user_text})
+                model = self._model
+
+            response = await self._client.chat.completions.create(
+                model=model,
+                messages=messages,
+                temperature=0.2,
+                max_tokens=1024,
+            )
+            if hasattr(response, 'usage') and response.usage:
+                self._last_token_usage = {
+                    "input_tokens": getattr(response.usage, 'prompt_tokens', 0),
+                    "output_tokens": getattr(response.usage, 'completion_tokens', 0),
+                    "total_tokens": getattr(response.usage, 'total_tokens', 0),
+                }
+            return response.choices[0].message.content or "I could not analyse the image."
+        except Exception:
+            logger.exception("[%s] Vision chat failed", self.name)
+            return "I encountered an error analysing the image."
+
+    async def _call_llm(self, user_prompt: str, image_url: str | None = None) -> str:
+        """Call Qwen-VL with multimodal content if an image is available."""
         try:
             messages: list[dict[str, Any]] = [
                 {"role": "system", "content": self._build_system_prompt()},
             ]
 
-            # Build user message — text-only or text + image
             if image_url:
-                # Multimodal content: text + image
                 user_content: list[dict[str, Any]] = [
                     {"type": "text", "text": user_prompt},
-                    {
-                        "type": "image_url",
-                        "image_url": {"url": image_url},
-                    },
+                    {"type": "image_url", "image_url": {"url": image_url}},
                 ]
                 messages.append({"role": "user", "content": user_content})
                 model = self._vision_model
             else:
-                # Text-only fallback
                 messages.append({"role": "user", "content": user_prompt})
                 model = self._model
 
