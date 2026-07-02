@@ -330,7 +330,14 @@ class BaseAgent(ABC):
                 model = "qwen-vl-plus-latest"
                 content: list[dict] = [{"type": "text", "text": user_prompt}]
                 for img in images:
-                    data_url = f"data:{img['mime_type']};base64,{img['content']}"
+                    # Handle both Pydantic model objects and plain dicts
+                    if hasattr(img, 'mime_type'):
+                        mime_type = img.mime_type
+                        img_content = img.content
+                    else:
+                        mime_type = img['mime_type']
+                        img_content = img['content']
+                    data_url = f"data:{mime_type};base64,{img_content}"
                     content.append({
                         "type": "image_url",
                         "image_url": {"url": data_url},

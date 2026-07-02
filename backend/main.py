@@ -687,20 +687,59 @@ async def chat_general(
             file_context = "\n\n".join(file_parts)
             agent_context += f"\n### Uploaded files:\n{file_context}\n"
 
-        # Add image info to context for all agents
+        # ── Vision pre-processing: describe images before agent analysis ──
+        vision_description = ""
         if payload.images:
-            img_summary = "\n".join(
-                f"- {img.filename} ({img.mime_type})\n  data:{img.mime_type};base64,{img.content[:80]}..."
-                for img in payload.images
+            from openai import AsyncOpenAI
+            vision_client = AsyncOpenAI(
+                api_key=settings.llm_api_key,
+                base_url="https://dashscope-intl.aliyuncs.com/compatible-mode/v1",
             )
-            agent_context += f"\n### Uploaded images:\n{img_summary}\n"
+            vision_content: list[dict] = [
+                {"type": "text", "text": f"Describe this image in detail. The user asked: \"{payload.message}\". Provide a thorough visual analysis covering all relevant elements, text, diagrams, charts, UI components, or code visible in the image. Be specific and detailed."}
+            ]
+            for img in payload.images:
+                # Handle both Pydantic model objects and plain dicts
+                if hasattr(img, 'mime_type'):
+                    mime_type = img.mime_type
+                    img_content = img.content
+                else:
+                    mime_type = img['mime_type']
+                    img_content = img['content']
+                data_url = f"data:{mime_type};base64,{img_content}"
+                vision_content.append({
+                    "type": "image_url",
+                    "image_url": {"url": data_url},
+                })
+            try:
+                vision_response = await vision_client.chat.completions.create(
+                    model="qwen-vl-plus-latest",
+                    messages=[
+                        {"role": "system", "content": "You are a visual analyst. Describe images thoroughly and accurately."},
+                        {"role": "user", "content": vision_content},
+                    ],
+                    max_tokens=2048,
+                )
+                vision_description = vision_response.choices[0].message.content or ""
+                logger.info("Vision model returned description (%d chars)", len(vision_description))
+            except Exception as e:
+                logger.error("Vision pre-processing failed: %s", e)
+                vision_description = f"[Image description unavailable: {e}]"
+
+            # Inject vision description into agent context so text-only agents can analyze it
+            agent_context += (
+                f"\n### Image Analysis (Vision Model Description):\n"
+                f"{vision_description}\n\n"
+                f"Use the description above as the visual reference. "
+                f"Provide your expert perspective on what the image shows.\n"
+            )
 
         async def ask_agent(name: str, agent: object) -> dict:
             """Call a single agent's answer_question and return its contribution.
 
-            If images are present, they are passed directly to the LLM as
-            multimodal content (``qwen-vl-plus``) for vision-capable analysis,
-            in addition to the text description in agent_context.
+            Agents receive the vision model's text description (in agent_context)
+            instead of raw image data, so all 6 agents can contribute their
+            expertise regardless of vision-model support.
             """
             try:
                 # Pass content_type so the agent adapts its response style
@@ -709,7 +748,6 @@ async def chat_general(
                     question=payload.message,
                     context=agent_context if agent_context else None,
                     content_type=ct,
-                    images=payload.images if payload.images else None,
                 )
                 return {
                     "agent": name,
