@@ -97,13 +97,21 @@ class QwenProvider(LLMProvider):
 
     async def complete(
         self,
-        model: str,
-        messages: list[dict[str, str]],
+        model: str | None = None,
+        messages: list[dict[str, str]] = [],
         max_tokens: int = 2048,
         temperature: float = 0.3,
         **kwargs: Any,
     ) -> LLMResponse:
-        """Send a chat completion request with retry on rate limits."""
+        """Send a chat completion request with retry on rate limits.
+
+        Parameters
+        ----------
+        model : str | None
+            Model name. Falls back to ``settings.llm_model`` when ``None``.
+        """
+        if model is None:
+            model = settings.llm_model
         last_error = None
         for attempt in range(MAX_RETRIES):
             try:
