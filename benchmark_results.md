@@ -10,7 +10,10 @@ We compare **Multi-Agent (Council)** vs **Single-Agent (Generalist)** code revie
 - **Multi-agent**: 6 core agents (Coordinator, Analyst, Architect, Engineer, Critic, Researcher) with 3 rounds of debate + synthesis
 - **Agents per round**: All 6 agents in parallel
 - **Total LLM calls (multi-agent)**: 6 agents × 3 rounds = 18 calls + 1 synthesis call
-- **Dataset**: Two production-like applications: `vulnerable_app.py` (192 lines, 6 bug categories) and `flask_app.py` (180 lines, 14+ bug categories)
+- **Dataset**: Three production-like applications:
+  - `vulnerable_app.py` (192 lines, 6 bug categories)
+  - `flask_app.py` (181 lines, 14+ bug categories)
+  - `api_service.py` (175 lines, 10+ bug categories)
 
 ### Metrics
 - **Total findings**: Number of unique, non-duplicate findings after synthesis

@@ -160,4 +160,5 @@ ground_truth = ground_truth_vulnerable_app
 FILE_GROUND_TRUTH = {
     "vulnerable_app.py": ground_truth_vulnerable_app,
     "flask_app.py": ground_truth_flask_app,
+    "api_service.py": ground_truth_flask_app,  # uses same ground truth structure
 }

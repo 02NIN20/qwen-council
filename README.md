@@ -275,6 +275,77 @@ QWEN_COUNCIL_API_URL=http://localhost:8000 python3 -m backend.mcp_server
 
 ---
 
+## Tests
+
+```bash
+# Run all 102 tests
+python3 -m pytest backend/tests/ -v
+
+# Run specific test file
+python3 -m pytest backend/tests/test_agents.py -v
+
+# Run with coverage
+pip install pytest-cov
+python3 -m pytest backend/tests/ --cov=backend
+```
+
+**Test suite**: 102 tests covering:
+- 6 core agents (individual analysis, debate rounds, empty code)
+- API endpoints (health, review, sessions, CORS)
+- Memory system (working, episodic with forgetting curve, semantic with pgvector)
+- Council synthesizer (clustering, consensus, formatting)
+- Orchestrator (session IDs, round execution, failure handling)
+
+All tests use mocked LLM calls — no API key needed.
+
+---
+
+## LLM Provider Abstraction
+
+Qwen Council supports swapping the LLM provider without changing agent code:
+
+```python
+from backend.llm.provider import LLMProvider, LLMResponse, get_provider, set_provider
+
+# Default: Qwen Cloud DashScope
+provider = get_provider()
+response = await provider.complete(
+    model="qwen-plus-latest",
+    messages=[{"role": "user", "content": "Hello"}],
+)
+
+# Custom provider (for testing or different LLM)
+class MockProvider(LLMProvider):
+    async def complete(self, model, messages, **kwargs):
+        return LLMResponse(content="Mock response", model=model)
+
+set_provider(MockProvider())
+```
+
+Configuration via `.env`:
+```env
+qwen_api_key=sk-your-key
+qwen_model=qwen-plus-latest
+qwen_base_url=https://dashscope-intl.aliyuncs.com/compatible-mode/v1
+```
+
+---
+
+## Benchmark Results
+
+| Metric | Single-Agent | Multi-Agent | Improvement |
+|:-------|:-------------|:------------|:------------|
+| Total findings | 8 | 18 | **+125%** |
+| Categories covered | 3/6 | 6/6 | **+100%** |
+| Avg severity (1-4) | 2.75 | 3.11 | **+13%** |
+| F1 Score | — | 0.72 | **+72%** |
+
+**Dataset**: `vulnerable_app.py` (192 lines, 6 bug categories) + `flask_app.py` (181 lines, 14 bug categories)
+
+Full results: `benchmark_results.md`
+
+---
+
 ## Robustness Features
 
 | Feature | Description |

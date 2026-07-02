@@ -40,14 +40,11 @@ Replace `/ABSOLUTE/PATH/to/qwen-council/` with the actual path.
 ### 3. Configure the API URL
 
 By default, `run_mcp.sh` connects to `http://localhost:8000`.
-To use the hosted ECS instance:
+To use a remote instance, set the environment variable:
 
 ```bash
-# In run_mcp.sh, change the default URL:
-export QWEN_COUNCIL_API_URL="${QWEN_COUNCIL_API_URL:-http://47.84.227.185}"
+export QWEN_COUNCIL_API_URL=http://your-server:8000
 ```
-
-Or set the environment variable before launching OpenCode.
 
 ### 4. Restart OpenCode
 
