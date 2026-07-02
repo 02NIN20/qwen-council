@@ -200,7 +200,13 @@ class BaseAgent(ABC):
     #  General Q&A (non-code-review)
     # ──────────────────────────────────────────────
 
-    async def answer_question(self, question: str, context: str | None = None, max_tokens: int = 1024) -> str:
+    async def answer_question(
+        self,
+        question: str,
+        context: str | None = None,
+        max_tokens: int = 1024,
+        content_type: str = "general",
+    ) -> str:
         """Answer ANY question from this agent's unique perspective.
 
         Unlike analyze() which does code review, this method handles
@@ -214,6 +220,9 @@ class BaseAgent(ABC):
             Additional context (files, conversation history, etc.).
         max_tokens : int
             Maximum tokens for the response. Default 1024.
+        content_type : str
+            Type of content being discussed: "code", "math", "research", "text", "markdown".
+            Default "general" (code-focused).
         """
         domain_prompts = {
             "science": "Your domain is SCIENCE and NATURE. Only answer questions about physics, biology, chemistry, astronomy, or the natural world. For history, art, philosophy, or social topics, respond: 'That is outside my domain — the Historian or Generalist would be better suited.'",
@@ -223,13 +232,23 @@ class BaseAgent(ABC):
             "art": "Your domain is ART, LITERATURE, MUSIC, and CREATIVITY. Only answer questions about artistic expression, creative works, or aesthetic appreciation. For science, history, philosophy, or technology, respond: 'That is outside my domain — the Historian or Generalist would be better suited.'",
             "psychology": "Your domain is PSYCHOLOGY and the HUMAN MIND. Only answer questions about the psyche, behaviour, dreams, archetypes, or emotions. For science, history, art, or technology, respond: 'That is outside my domain — the Scientist or Generalist would be better suited.'",
             "strategy": "Your domain is STRATEGY, BUSINESS, and DECISION-MAKING. Only answer questions about planning, competition, leadership, or tactical thinking. For science, history, art, or philosophy, respond: 'That is outside my domain — the Historian or Generalist would be better suited.'",
-            "general": "Your domain is GENERAL KNOWLEDGE, practical wisdom, and everyday life. You can answer ANY question with common sense and wit. Adapt your tone to the question — warm for social, insightful for complex topics. You are the catch-all expert."
+            "general": "Your domain is GENERAL KNOWLEDGE, practical wisdom, and everyday life. You can answer ANY question with common sense and wit. Adapt your tone to the question — warm for social, insightful for complex topics. You are the catch-all expert.",
         }
         domain_rule = domain_prompts.get(self.domain, domain_prompts["general"])
 
+        # Content-type specific system prompt modifier
+        content_type_modifier = {
+            "code": "",
+            "math": "You are analyzing MATHEMATICAL content. When the user shares equations, theorems, proofs, or formulas, explain them clearly, verify correctness step by step, identify any errors, and provide insights. Use proper LaTeX notation ($...$ for inline, $$...$$ for display) in your responses.",
+            "research": "You are reading an ACADEMIC PAPER. Summarize the key findings, evaluate the methodology, identify strengths and weaknesses, and answer questions about the research clearly and concisely. Be objective and precise.",
+            "text": "You are reading a text document. Read the content carefully and answer the user's question clearly, thoroughly, and helpfully. If the text contains arguments or claims, evaluate them critically.",
+            "markdown": "You are reading a MARKDOWN document. You can analyze its content, provide feedback on structure and clarity, and help with edits if requested.",
+            "general": "",
+        }.get(content_type, "")
+
         system_prompt = (
             f"You are {self.role_description}. "
-            f"{domain_rule}\n\n"
+            f"{domain_rule} {content_type_modifier}\n\n"
             "Rules:\n"
             "- Be concise but thorough. Write as much as needed.\n"
             "- No introductions or sign-offs. Just respond.\n"

@@ -624,9 +624,42 @@ async def chat_general(
             except Exception:
                 logger.warning("Could not load previous chat context — continuing fresh")
 
-        # ── Route to the right agents based on question category ──
+        # ── Detect content type if files are uploaded ──
+        from backend.utils.content_detector import detect_content_type, get_handler_prompt
+
+        detected_content_types: list[str] = []
+        non_code_files: list[dict] = []
+
+        if payload.files:
+            for f in payload.files:
+                ct = detect_content_type(f.filename, f.content)
+                logger.info("File %s detected as %s", f.filename, ct)
+                detected_content_types.append(ct)
+                if ct != "code":
+                    non_code_files.append({"filename": f.filename, "content": f.content, "type": ct})
+
+        # ── Route to the right agents based on content type ──
+        # For non-code content (math, research, text), select agents that excel
+        # at general analysis instead of code review
         category = _classify_question(payload.message)
-        selected_agents = _route_question(category)
+
+        # If files contain non-code content, override routing to use generalist agents
+        if non_code_files and not payload.images:
+            # Use the Analyst + Researcher + Coordinator for general content
+            # Engineer + Architect for code-related questions
+            primary_type = detected_content_types[0] if detected_content_types else "text"
+            if primary_type in ("math", "research", "text"):
+                # For non-code, use the analytical + research-oriented agents
+                selected_agents = {
+                    "coordinator": CoordinatorAgent(),
+                    "analyst": AnalystAgent(),
+                    "researcher": ResearcherAgent(),
+                    "critic": CriticAgent(),
+                }
+            else:
+                selected_agents = _route_question(category, has_images=bool(payload.images))
+        else:
+            selected_agents = _route_question(category, has_images=bool(payload.images))
 
         session_id = payload.session_id or f"chat-{uuid.uuid4().hex[:8]}"
 
@@ -669,9 +702,12 @@ async def chat_general(
                         image_url=image_urls[0],
                     )
                 else:
+                    # Pass content_type so the agent adapts its response style
+                    ct = detected_content_types[0] if detected_content_types else "general"
                     answer = await agent.answer_question(  # type: ignore[union-attr]
                         question=payload.message,
                         context=agent_context if agent_context else None,
+                        content_type=ct,
                     )
                 return {
                     "agent": name,
@@ -744,6 +780,53 @@ async def chat_stream(payload: ChatRequest):
     """
     async def event_generator():
         try:
+            # ── Direct LLM for non-code content (math, research, text) ──
+            from backend.utils.content_detector import detect_content_type, get_handler_prompt
+
+            use_direct_llm = False
+            direct_llm_system = None
+            direct_llm_files = []
+
+            if payload.files:
+                for f in payload.files:
+                    ct = detect_content_type(f.filename, f.content)
+                    logger.info("File %s detected as %s (stream)", f.filename, ct)
+                    if ct != "code":
+                        use_direct_llm = True
+                        direct_llm_system = get_handler_prompt(ct, f.filename)
+                    direct_llm_files.append({"filename": f.filename, "content": f.content, "type": ct})
+
+            if use_direct_llm and not payload.images:
+                try:
+                    from openai import AsyncOpenAI
+                    client = AsyncOpenAI(api_key=settings.qwen_api_key, base_url=settings.qwen_base_url)
+                    file_block = "\n\n".join(
+                        f"### {f['filename']}\n```\n{f['content'][:6000]}\n```"
+                        for f in direct_llm_files
+                    )
+                    prompt = f"{file_block}\n\n### Question:\n{payload.message}"
+                    response = await client.chat.completions.create(
+                        model=settings.qwen_model,
+                        messages=[
+                            {"role": "system", "content": direct_llm_system},
+                            {"role": "user", "content": prompt},
+                        ],
+                        temperature=0.2,
+                        max_tokens=2048,
+                    )
+                    final = response.choices[0].message.content or ""
+                    session_id = payload.session_id or f"chat-{uuid.uuid4().hex[:8]}"
+                    yield "event: synthesis_complete\ndata: " + json.dumps({
+                        "final_answer": final,
+                        "session_id": session_id,
+                        "contributions": [],
+                        "content_type": "direct_llm",
+                    }) + "\n\n"
+                    return
+                except Exception as e:
+                    logger.exception("Direct LLM stream failed, falling back to agents")
+                    # Fall through to agent routing
+
             category = _classify_question(payload.message)
             selected_agents = _route_question(category, has_images=bool(payload.images))
 

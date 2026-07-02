@@ -104,39 +104,79 @@ async def chat(message: str, session_id: str = "") -> str:
 
 @server.tool()
 async def analyze_file(filename: str, content: str, question: str = "") -> str:
-    """Analyze a source code or text file and get insights.
+    """Submit a file for the Agent Society to analyze.
 
-    The file is analyzed by the LLM directly (not routed through agents).
-    Best for: understanding unfamiliar code, finding bugs, getting
-    suggestions for improvement, reviewing configuration files.
-
-    For files > 4000 chars, only the beginning is analyzed.
-    For full code review, use review_code() instead.
+    For code files: 6 agents debate through review rounds.
+    For non-code files (math, research, text): routes to the
+    most relevant generalist agents (Coordinator, Analyst, Researcher).
 
     Args:
-        filename: File name with extension (e.g. "main.py", "config.json").
+        filename: File name with extension (e.g. "main.py", "paper.tex", "notes.md").
         content: Full text content of the file.
-        question: Optional specific question (e.g. "Are there security issues?").
+        question: Optional specific question about the file.
     """
     try:
         if len(content) > 50000:
             return json.dumps({"error": "File too large (max 50000 chars)", "filename": filename}, indent=2)
 
-        truncated = content[:4000]
+        from backend.utils.content_detector import detect_content_type
+        content_type = detect_content_type(filename, content)
+
+        # For small non-code files, route through chat agents (which will adapt)
+        if content_type != "code" and len(content) <= 4000:
+            payload = {
+                "message": question or f"Analyze this file: {filename}",
+                "files": [{"filename": filename, "content": content,
+                          "language": filename.split('.')[-1]}],
+            }
+            result = await api_post("/api/chat", payload, timeout=120)
+            return json.dumps({
+                "filename": filename,
+                "content_type": content_type,
+                "response": result.get("response", ""),
+                "agents": [
+                    {"agent": c.get("agent"), "role": c.get("role_description"),
+                     "answer": c.get("answer")}
+                    for c in result.get("agent_contributions", [])
+                ],
+            }, indent=2)
+
+        # For code files or large files, use direct LLM
+        truncated = content[:4000] if len(content) > 4000 else content
+        from openai import AsyncOpenAI
+        from backend.config import settings
+        client = AsyncOpenAI(api_key=settings.qwen_api_key, base_url=settings.qwen_base_url)
+
+        if content_type == "code":
+            system = "You are a senior code analyst. Be concise but thorough."
+        elif content_type == "math":
+            system = "You are a math expert. Explain equations clearly using LaTeX notation."
+        elif content_type == "research":
+            system = "You are a research analyst. Summarize key findings objectively."
+        elif content_type == "markdown":
+            system = "You are a document editor. Provide feedback on structure and clarity."
+        else:
+            system = "You are a content analyst. Read carefully and answer the question."
+
         prompt = (
-            f"Analyze this file: {filename}\n"
-            f"Question: {question or 'What does this code do?'}\n\n"
+            f"Analyze this {filename} file (type: {content_type}).\n"
+            f"Question: {question or 'What does this content do/say?'}\n\n"
             f"```\n{truncated}\n```\n"
-            + ("(file truncated to first 4000 chars)\n" if len(content) > 4000 else "")
-            + "\nProvide: overview, key components, potential issues, improvement suggestions."
+            + ("(truncated to first 4000 chars)\n" if len(content) > 4000 else "")
+            + "\nProvide: overview, key points, potential issues or insights."
         )
-        result = await _call_llm(
-            "You are a senior code analyst. Be concise but thorough.",
-            prompt,
-            max_tokens=2048,
+        resp = await client.chat.completions.create(
+            model=settings.qwen_model,
+            messages=[
+                {"role": "system", "content": system},
+                {"role": "user", "content": prompt},
+            ],
+            temperature=0.2, max_tokens=2048,
         )
+        result = resp.choices[0].message.content or ""
         return json.dumps({
             "filename": filename,
+            "content_type": content_type,
             "analysis": result,
             "truncated": len(content) > 4000,
         }, indent=2)
