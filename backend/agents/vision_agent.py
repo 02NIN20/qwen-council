@@ -24,7 +24,7 @@ class VisionAgent(BaseAgent):
     """
 
     def __init__(self) -> None:
-        self._vision_model = "qwen-vl-max"
+        self._vision_model = "qwen-vl-plus"
         super().__init__(
             name="vision",
             role_description=(
