@@ -235,6 +235,7 @@ def validate_finding(
         patterns = CWE_PATTERNS.get(cwe, [])
         if not patterns:
             # Unknown CWE — soft accept if line has any code
+            actual_line = code_lines[line_num - 1] if line_num <= len(code_lines) else ""
             if actual_line.strip():
                 result["matched_patterns"].append(f"unknown_cwe:{cwe}")
                 result["valid"] = True
