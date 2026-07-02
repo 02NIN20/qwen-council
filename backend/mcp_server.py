@@ -30,7 +30,7 @@ server = FastMCP("qwen-council")
 
 async def api_post(path: str, data: dict) -> dict:
     url = f"{API_BASE_URL.rstrip('/')}{path}"
-    async with httpx.AsyncClient(timeout=300) as client:
+    async with httpx.AsyncClient(timeout=600) as client:
         resp = await client.post(url, json=data, headers={"Content-Type": "application/json"})
         resp.raise_for_status()
         return resp.json()
@@ -45,17 +45,21 @@ async def api_get(path: str) -> dict:
 
 
 @server.tool()
-async def review_code(code: str, instruction: str = "") -> str:
+async def review_code(code: str, instruction: str = "", mode: str = "light") -> str:
     """Submit source code for multi-agent council review.
 
     6 core agents (Coordinator, Analyst, Architect, Engineer, Critic, Researcher)
-    with 15 sub-agents analyze code through 3 debate rounds + negotiation.
+    with 15 sub-agents analyze code through debate rounds + negotiation.
+
+    Use mode="light" for faster results (3 agents, 2 rounds, ~40% cost).
+    Use mode="full" for thorough review (6 agents, 4 rounds, takes longer).
 
     Args:
         code: Source code to review.
         instruction: Optional focus instruction (e.g. "Focus on security").
+        mode: Review mode - "light" (fast) or "full" (thorough). Default: "light".
     """
-    payload = {"code": code}
+    payload = {"code": code, "mode": mode}
     if instruction:
         payload["instruction"] = instruction
 
