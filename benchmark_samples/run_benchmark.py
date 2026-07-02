@@ -128,8 +128,8 @@ async def run_sample(
             "time_seconds": round(ma_time, 1),
             "scores": ma_scores,
             "total_tokens": (
-                ma_metrics.get("input_tokens", 0) + ma_metrics.get("output_tokens", 0)
-                if ma_metrics else 0
+                (ma_metrics.raw_tokens_input if ma_metrics else 0) +
+                (ma_metrics.raw_tokens_output if ma_metrics else 0)
             ),
         },
         "improvement": {

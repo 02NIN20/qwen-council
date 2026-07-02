@@ -8,7 +8,7 @@ Usage:
     multiagent-council setup
 
 Environment:
-    QWEN_COUNCIL_URL  — API base URL (default: http://localhost:8000)
+    MULTIAGENT_COUNCIL_URL or QWEN_COUNCIL_URL  — API base URL (default: http://localhost:8000)
     QWEN_API_KEY      — Qwen Cloud API key (for setup command)
 """
 
@@ -29,7 +29,7 @@ except ImportError:
     sys.exit(1)
 
 
-DEFAULT_URL = os.environ.get("QWEN_COUNCIL_URL", "http://localhost:8000")
+DEFAULT_URL = os.environ.get("MULTIAGENT_COUNCIL_URL") or os.environ.get("QWEN_COUNCIL_URL") or "http://localhost:8000"
 CONFIG_DIR = Path.home() / ".multiagent-council"
 CONFIG_FILE = CONFIG_DIR / "config.json"
 
@@ -68,7 +68,7 @@ def api_request(method: str, path: str, data: dict | None = None, timeout: int =
         return resp.json()
     except requests.exceptions.ConnectionError:
         print(f"Error: Cannot connect to Qwen Council at {base_url}")
-        print("Make sure the server is running or set QWEN_COUNCIL_URL")
+        print("Make sure the server is running or set MULTIAGENT_COUNCIL_URL")
         sys.exit(1)
     except requests.exceptions.Timeout:
         print("Error: Request timed out. The council may be processing a large review.")

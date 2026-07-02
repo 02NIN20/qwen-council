@@ -43,7 +43,7 @@ By default, `run_mcp.sh` connects to `http://localhost:8000`.
 To use a remote instance, set the environment variable:
 
 ```bash
-export QWEN_COUNCIL_API_URL=http://your-server:8000
+export MULTIAGENT_COUNCIL_API_URL=http://your-server:8000
 ```
 
 ### 4. Restart OpenCode
@@ -67,4 +67,4 @@ Close and reopen OpenCode. The `multiagent-council` MCP server should appear.
 - **`chat`** is fastest — use for design questions and brainstorming
 - **`analyze_file`** works best for files < 3000 chars (direct LLM for larger)
 - **`review_code`** use `mode: "light"` for faster results, `mode: "full"` for thorough
-- Set `QWEN_COUNCIL_API_URL` to your own deployed instance if needed
+- Set `MULTIAGENT_COUNCIL_API_URL` to your own deployed instance if needed (or `QWEN_COUNCIL_API_URL` for backward compat)

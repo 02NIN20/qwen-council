@@ -12,7 +12,7 @@ Tools:
   - get_session: Get session details
 
 Usage:
-    QWEN_COUNCIL_API_URL=http://localhost:8000 python3 -m backend.mcp_server
+    MULTIAGENT_COUNCIL_API_URL=http://localhost:8000 python3 -m backend.mcp_server
 """
 
 from __future__ import annotations
@@ -27,7 +27,7 @@ from mcp.server.fastmcp import FastMCP
 
 logger = logging.getLogger(__name__)
 
-API_BASE_URL = os.environ.get("QWEN_COUNCIL_API_URL", "http://localhost:8000")
+API_BASE_URL = os.environ.get("MULTIAGENT_COUNCIL_API_URL") or os.environ.get("QWEN_COUNCIL_API_URL") or "http://localhost:8000"
 server = FastMCP("multiagent-council")
 
 

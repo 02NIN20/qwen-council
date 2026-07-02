@@ -291,7 +291,7 @@ See `MCP_SETUP.md` for detailed instructions.
 ### Run locally (without MCP)
 
 ```bash
-QWEN_COUNCIL_API_URL=http://localhost:8000 python3 -m backend.mcp_server
+MULTIAGENT_COUNCIL_API_URL=http://localhost:8000 python3 -m backend.mcp_server
 ```
 
 ---

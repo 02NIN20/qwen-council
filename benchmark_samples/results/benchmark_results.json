@@ -1,0 +1,268 @@
+[
+  {
+    "sample": "sqli_app.py",
+    "lines": 58,
+    "single_agent": {
+      "findings_count": 10,
+      "time_seconds": 23.7,
+      "scores": {
+        "total_ground_truth": 4,
+        "findings_found": 10,
+        "true_positives": 0,
+        "false_positives": 10,
+        "false_negatives": 4,
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1": 0
+      }
+    },
+    "multi_agent": {
+      "findings_count": 95,
+      "consolidated_findings": 7,
+      "time_seconds": 123.5,
+      "scores": {
+        "total_ground_truth": 4,
+        "findings_found": 95,
+        "true_positives": 2,
+        "false_positives": 93,
+        "false_negatives": 2,
+        "precision": 0.021,
+        "recall": 0.5,
+        "f1": 0.04
+      },
+      "total_tokens": 19269
+    },
+    "improvement": {
+      "findings_pct": 850.0,
+      "f1_pct": 4000.0
+    }
+  },
+  {
+    "sample": "xss_app.py",
+    "lines": 65,
+    "single_agent": {
+      "findings_count": 12,
+      "time_seconds": 26.0,
+      "scores": {
+        "total_ground_truth": 5,
+        "findings_found": 12,
+        "true_positives": 0,
+        "false_positives": 12,
+        "false_negatives": 5,
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1": 0
+      }
+    },
+    "multi_agent": {
+      "findings_count": 116,
+      "consolidated_findings": 7,
+      "time_seconds": 141.7,
+      "scores": {
+        "total_ground_truth": 5,
+        "findings_found": 116,
+        "true_positives": 1,
+        "false_positives": 115,
+        "false_negatives": 4,
+        "precision": 0.009,
+        "recall": 0.2,
+        "f1": 0.017
+      },
+      "total_tokens": 21792
+    },
+    "improvement": {
+      "findings_pct": 866.7,
+      "f1_pct": 1700.0
+    }
+  },
+  {
+    "sample": "cmd_injection.py",
+    "lines": 60,
+    "single_agent": {
+      "findings_count": 9,
+      "time_seconds": 20.0,
+      "scores": {
+        "total_ground_truth": 5,
+        "findings_found": 9,
+        "true_positives": 1,
+        "false_positives": 8,
+        "false_negatives": 4,
+        "precision": 0.111,
+        "recall": 0.2,
+        "f1": 0.143
+      }
+    },
+    "multi_agent": {
+      "findings_count": 112,
+      "consolidated_findings": 6,
+      "time_seconds": 150.0,
+      "scores": {
+        "total_ground_truth": 5,
+        "findings_found": 112,
+        "true_positives": 1,
+        "false_positives": 111,
+        "false_negatives": 4,
+        "precision": 0.009,
+        "recall": 0.2,
+        "f1": 0.017
+      },
+      "total_tokens": 26254
+    },
+    "improvement": {
+      "findings_pct": 1144.4,
+      "f1_pct": -88.1
+    }
+  },
+  {
+    "sample": "hardcoded_secrets.py",
+    "lines": 51,
+    "single_agent": {
+      "findings_count": 10,
+      "time_seconds": 16.6,
+      "scores": {
+        "total_ground_truth": 7,
+        "findings_found": 10,
+        "true_positives": 1,
+        "false_positives": 9,
+        "false_negatives": 6,
+        "precision": 0.1,
+        "recall": 0.143,
+        "f1": 0.118
+      }
+    },
+    "multi_agent": {
+      "findings_count": 86,
+      "consolidated_findings": 6,
+      "time_seconds": 120.6,
+      "scores": {
+        "total_ground_truth": 7,
+        "findings_found": 86,
+        "true_positives": 6,
+        "false_positives": 80,
+        "false_negatives": 1,
+        "precision": 0.07,
+        "recall": 0.857,
+        "f1": 0.129
+      },
+      "total_tokens": 16909
+    },
+    "improvement": {
+      "findings_pct": 760.0,
+      "f1_pct": 9.3
+    }
+  },
+  {
+    "sample": "insecure_deserialize.py",
+    "lines": 61,
+    "single_agent": {
+      "findings_count": 6,
+      "time_seconds": 15.9,
+      "scores": {
+        "total_ground_truth": 5,
+        "findings_found": 6,
+        "true_positives": 0,
+        "false_positives": 6,
+        "false_negatives": 5,
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1": 0
+      }
+    },
+    "multi_agent": {
+      "findings_count": 103,
+      "consolidated_findings": 6,
+      "time_seconds": 127.8,
+      "scores": {
+        "total_ground_truth": 5,
+        "findings_found": 103,
+        "true_positives": 2,
+        "false_positives": 101,
+        "false_negatives": 3,
+        "precision": 0.019,
+        "recall": 0.4,
+        "f1": 0.037
+      },
+      "total_tokens": 20744
+    },
+    "improvement": {
+      "findings_pct": 1616.7,
+      "f1_pct": 3700.0
+    }
+  },
+  {
+    "sample": "path_traversal.py",
+    "lines": 65,
+    "single_agent": {
+      "findings_count": 10,
+      "time_seconds": 20.9,
+      "scores": {
+        "total_ground_truth": 5,
+        "findings_found": 10,
+        "true_positives": 1,
+        "false_positives": 9,
+        "false_negatives": 4,
+        "precision": 0.1,
+        "recall": 0.2,
+        "f1": 0.133
+      }
+    },
+    "multi_agent": {
+      "findings_count": 89,
+      "consolidated_findings": 9,
+      "time_seconds": 111.6,
+      "scores": {
+        "total_ground_truth": 5,
+        "findings_found": 89,
+        "true_positives": 3,
+        "false_positives": 86,
+        "false_negatives": 2,
+        "precision": 0.034,
+        "recall": 0.6,
+        "f1": 0.064
+      },
+      "total_tokens": 19358
+    },
+    "improvement": {
+      "findings_pct": 790.0,
+      "f1_pct": -51.9
+    }
+  },
+  {
+    "sample": "csrf_missing.py",
+    "lines": 65,
+    "single_agent": {
+      "findings_count": 12,
+      "time_seconds": 28.9,
+      "scores": {
+        "total_ground_truth": 5,
+        "findings_found": 12,
+        "true_positives": 1,
+        "false_positives": 11,
+        "false_negatives": 4,
+        "precision": 0.083,
+        "recall": 0.2,
+        "f1": 0.118
+      }
+    },
+    "multi_agent": {
+      "findings_count": 92,
+      "consolidated_findings": 7,
+      "time_seconds": 123.1,
+      "scores": {
+        "total_ground_truth": 5,
+        "findings_found": 92,
+        "true_positives": 1,
+        "false_positives": 91,
+        "false_negatives": 4,
+        "precision": 0.011,
+        "recall": 0.2,
+        "f1": 0.021
+      },
+      "total_tokens": 24264
+    },
+    "improvement": {
+      "findings_pct": 666.7,
+      "f1_pct": -82.2
+    }
+  }
+]

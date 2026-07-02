@@ -317,7 +317,7 @@ class BaseAgent(ABC):
             sp = system_prompt if system_prompt is not None else self._build_system_prompt()
             # Build user message — text-only or multimodal
             if images:
-                model = "qwen-vl-plus"
+                model = "qwen-vl-plus-latest"
                 content: list[dict] = [{"type": "text", "text": user_prompt}]
                 for img in images:
                     data_url = f"data:{img['mime_type']};base64,{img['content']}"

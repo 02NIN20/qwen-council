@@ -14,7 +14,7 @@ class Settings(BaseSettings):
     # ── LLM Provider (OpenAI-compatible) ────────────────────────────
     llm_api_key: str = ""
     llm_base_url: str = "https://dashscope.aliyuncs.com/compatible-mode/v1"
-    llm_model: str = "qwen-plus-latest"
+    llm_model: str = "qwen3-coder-plus-2025-09-23"
     llm_embedding_model: str = "text-embedding-v3"
     llm_timeout_seconds: int = 300
     llm_provider: str = "qwen"  # qwen | openai | ollama
