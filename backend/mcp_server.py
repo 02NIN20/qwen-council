@@ -1,41 +1,34 @@
 """MCP (Model Context Protocol) server for Qwen Council.
 
-Exposes the Agent Society as tools that any MCP-compatible client
-(Claude Desktop, Cursor, OpenCode, etc.) can invoke.
+Exposes the Agent Society as tools for OpenCode, Claude Desktop, Cursor, etc.
 
 Tools:
   - review_code: Submit code for multi-agent council review
-  - analyze_file: Submit a file for agent analysis (chat mode)
+  - analyze_file: Submit a file for Agent Society analysis
   - chat: Ask the Agent Society a question
-  - list_sessions: List past review/chat sessions
-  - get_session: Get details of a specific session
+  - list_sessions: List past sessions
+  - get_session: Get session details
 
 Usage:
-    python -m backend.mcp_server  # stdio mode (for Claude Desktop, Cursor, OpenCode)
+    QWEN_COUNCIL_API_URL=http://47.84.227.185 python3 -m backend.mcp_server
 """
 
 from __future__ import annotations
 
-import asyncio
 import json
 import logging
 import os
-from typing import Any
 
 import httpx
-from mcp.server import Server
-from mcp.server.stdio import stdio_server
-from mcp.types import Tool, TextContent
+from mcp.server.fastmcp import FastMCP
 
 logger = logging.getLogger(__name__)
 
 API_BASE_URL = os.environ.get("QWEN_COUNCIL_API_URL", "http://localhost:8000")
+server = FastMCP("qwen-council")
 
-server = Server("qwen-council")
 
-
-async def _api_post(path: str, data: dict) -> dict:
-    """Make a POST request to the Qwen Council API."""
+async def api_post(path: str, data: dict) -> dict:
     url = f"{API_BASE_URL.rstrip('/')}{path}"
     async with httpx.AsyncClient(timeout=300) as client:
         resp = await client.post(url, json=data, headers={"Content-Type": "application/json"})
@@ -43,8 +36,7 @@ async def _api_post(path: str, data: dict) -> dict:
         return resp.json()
 
 
-async def _api_get(path: str) -> dict:
-    """Make a GET request to the Qwen Council API."""
+async def api_get(path: str) -> dict:
     url = f"{API_BASE_URL.rstrip('/')}{path}"
     async with httpx.AsyncClient(timeout=30) as client:
         resp = await client.get(url)
@@ -53,148 +45,115 @@ async def _api_get(path: str) -> dict:
 
 
 @server.tool()
-async def review_code(code: str, instruction: str = "") -> list[TextContent]:
+async def review_code(code: str, instruction: str = "") -> str:
     """Submit source code for multi-agent council review.
 
-    Six core agents (Coordinator, Analyst, Architect, Engineer, Critic, Researcher)
-    with 15 sub-agents analyze the code through 3 debate rounds + negotiation.
+    6 core agents (Coordinator, Analyst, Architect, Engineer, Critic, Researcher)
+    with 15 sub-agents analyze code through 3 debate rounds + negotiation.
 
     Args:
-        code: The source code to review.
-        instruction: Optional review instruction (e.g. "Focus on security").
-
-    Returns:
-        JSON string with findings, summary, token usage, and estimated cost.
+        code: Source code to review.
+        instruction: Optional focus instruction (e.g. "Focus on security").
     """
     payload = {"code": code}
     if instruction:
         payload["instruction"] = instruction
 
-    result = await _api_post("/api/review", payload)
+    result = await api_post("/api/review", payload)
     report = result.get("report", {})
 
-    output = {
+    return json.dumps({
         "session_id": result.get("session_id"),
         "findings_count": len(report.get("findings", [])),
         "summary": report.get("summary", ""),
         "token_usage": report.get("token_usage", {}),
         "findings": [
-            {
-                "title": f.get("title"),
-                "impact": f.get("impact"),
-                "proposal": f.get("proposal"),
-                "consensus": f.get("consensus_level"),
-                "votes": f.get("votes"),
-            }
-            for f in report.get("findings", [])[:10]
+            {"title": f.get("title"), "impact": f.get("impact"),
+             "proposal": f.get("proposal"), "consensus": f.get("consensus_level")}
+            for f in report.get("findings", [])[:15]
         ],
-    }
-    return [TextContent(type="text", text=json.dumps(output, indent=2))]
+    }, indent=2)
 
 
 @server.tool()
-async def analyze_file(filename: str, content: str, question: str = "") -> list[TextContent]:
+async def analyze_file(filename: str, content: str, question: str = "") -> str:
     """Submit a file for the Agent Society to analyze.
 
-    All 6 core agents examine the file and provide insights from their
-    respective domains (analysis, architecture, engineering, critique, research).
+    All 6 agents examine the file and provide domain-specific insights.
 
     Args:
-        filename: Name of the file (e.g. "main.py").
+        filename: File name (e.g. "main.py").
         content: File contents as text.
         question: Optional specific question about the file.
-
-    Returns:
-        JSON string with synthesized analysis from all agents.
     """
     payload = {
         "message": question or f"Analyze this file: {filename}",
         "files": [{"filename": filename, "content": content, "language": filename.split('.')[-1]}],
     }
+    result = await api_post("/api/chat", payload)
 
-    result = await _api_post("/api/chat", payload)
-
-    output = {
+    return json.dumps({
         "session_id": result.get("session_id"),
         "response": result.get("response", ""),
-        "agent_contributions": [
+        "agents": [
             {"agent": c.get("agent"), "role": c.get("role_description"), "answer": c.get("answer")}
             for c in result.get("agent_contributions", [])
         ],
-    }
-    return [TextContent(type="text", text=json.dumps(output, indent=2))]
+    }, indent=2)
 
 
 @server.tool()
-async def chat(message: str, session_id: str = "") -> list[TextContent]:
+async def chat(message: str, session_id: str = "") -> str:
     """Ask the Agent Society a question.
 
-    Six core agents (Coordinator, Analyst, Architect, Engineer, Critic, Researcher)
-    answer any question. A router activates only the 1-3 most relevant agents.
+    6 core agents answer. A router activates only the 1-3 most relevant.
 
     Args:
-        message: The question to ask.
+        message: Your question.
         session_id: Optional session ID for conversation context.
-
-    Returns:
-        JSON string with the synthesized answer and agent contributions.
     """
     payload = {"message": message}
     if session_id:
         payload["session_id"] = session_id
 
-    result = await _api_post("/api/chat", payload)
-
-    output = {
+    result = await api_post("/api/chat", payload)
+    return json.dumps({
         "session_id": result.get("session_id"),
         "response": result.get("response", ""),
         "agents": [
             {"name": c.get("agent"), "role": c.get("role_description"), "answer": c.get("answer")}
             for c in result.get("agent_contributions", [])
         ],
-    }
-    return [TextContent(type="text", text=json.dumps(output, indent=2))]
+    }, indent=2)
 
 
 @server.tool()
-async def list_sessions(limit: int = 20) -> list[TextContent]:
+async def list_sessions(limit: int = 20) -> str:
     """List past review and chat sessions.
 
     Args:
-        limit: Maximum number of sessions to return (default 20).
-
-    Returns:
-        JSON array of session summaries.
+        limit: Max sessions to return (default 20).
     """
-    sessions = await _api_get("/api/sessions")
-    return [TextContent(type="text", text=json.dumps(sessions[:limit], indent=2))]
+    sessions = await api_get("/api/sessions")
+    return json.dumps(sessions[:limit], indent=2)
 
 
 @server.tool()
-async def get_session(session_id: str) -> list[TextContent]:
-    """Get details of a specific session including findings or chat history.
+async def get_session(session_id: str) -> str:
+    """Get details of a specific session.
 
     Args:
-        session_id: The session ID to retrieve.
-
-    Returns:
-        JSON object with session details.
+        session_id: Session ID to retrieve.
     """
-    session = await _api_get(f"/api/sessions/{session_id}")
-    return [TextContent(type="text", text=json.dumps(session, indent=2))]
+    session = await api_get(f"/api/sessions/{session_id}")
+    return json.dumps(session, indent=2)
 
 
-async def amain() -> None:
-    """Run the MCP server in stdio mode."""
+def main():
     logging.basicConfig(level=logging.INFO)
-    logger.info("Starting Qwen Council MCP server")
+    logger.info("Starting Qwen Council MCP server (stdio)")
     logger.info("API URL: %s", API_BASE_URL)
-    async with stdio_server() as (read_stream, write_stream):
-        await server.run(read_stream, write_stream, server.create_initialization_options())
-
-
-def main() -> None:
-    asyncio.run(amain())
+    server.run(transport="stdio")
 
 
 if __name__ == "__main__":
