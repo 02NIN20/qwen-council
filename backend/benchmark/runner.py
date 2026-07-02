@@ -112,7 +112,7 @@ class BenchmarkRunner:
 
         metrics = collect_metrics(
             mode="multi-agent",
-            findings=all_findings,
+            findings=consolidated,  # ← evaluate against CONSOLIDATED findings (what user sees)
             execution_time_s=elapsed,
             input_tokens=input_tokens,
             output_tokens=output_tokens,

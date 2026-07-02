@@ -72,13 +72,56 @@ async def synthesize(
 
     # Cluster similar findings
     clusters = _cluster_findings(final_findings)
+    logger.info("Synthesizer: %d raw findings → %d clusters", len(final_findings), len(clusters))
 
-    # Build consolidated findings
+    # Build consolidated findings with filtering
     consolidated: list[ConsolidatedFinding] = []
+    discarded_count = 0
     for cluster in clusters:
         cf = _consolidate_cluster(cluster)
-        if cf is not None:
-            consolidated.append(cf)
+        if cf is None:
+            continue
+
+        # ── Filtering step: discard low-quality findings ────────────
+        # Rule 1: Must cite a line number (evidence of specificity)
+        has_line = bool(__import__('re').search(r'\bline\s+\d+\b', cf.detail, __import__('re').IGNORECASE))
+
+        # Rule 2: Must have at least 2 agents agreeing OR be Critical
+        enough_votes = len(cf.votes) >= 2 or cf.impact == "Critical"
+
+        # Rule 3: Low consensus + Low severity → discard (noise)
+        low_value = (
+            cf.consensus_level in ("Low", "No consensus")
+            and cf.impact in ("Medium", "Low")
+        )
+
+        # Rule 4: Must have a concrete proposal (not generic)
+        has_proposal = len(cf.proposal) > 20
+
+        if not has_line and cf.impact != "Critical":
+            discarded_count += 1
+            logger.debug("Synthesizer discarded: no line number — %s", cf.title[:60])
+            continue
+        if low_value:
+            discarded_count += 1
+            logger.debug("Synthesizer discarded: low value — %s", cf.title[:60])
+            continue
+        if not has_proposal and cf.impact != "Critical":
+            discarded_count += 1
+            logger.debug("Synthesizer discarded: no concrete proposal — %s", cf.title[:60])
+            continue
+        if not enough_votes and cf.impact != "Critical":
+            discarded_count += 1
+            logger.debug("Synthesizer discarded: insufficient votes — %s", cf.title[:60])
+            continue
+
+        consolidated.append(cf)
+
+    logger.info(
+        "Synthesizer: %d consolidated, %d discarded (%.0f%% kept)",
+        len(consolidated), discarded_count,
+        (len(consolidated) / max(len(clusters), 1)) * 100,
+    )
 
     # Sort by severity: Critical -> High -> Medium -> Low
     severity_order = {"Critical": 0, "High": 1, "Medium": 2, "Low": 3}

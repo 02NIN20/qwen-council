@@ -3,198 +3,84 @@
     "sample": "sqli_app.py",
     "lines": 58,
     "single_agent": {
-      "findings_count": 10,
-      "time_seconds": 23.7,
+      "findings_count": 9,
+      "time_seconds": 26.1,
       "scores": {
         "total_ground_truth": 4,
-        "findings_found": 10,
-        "true_positives": 0,
-        "false_positives": 10,
-        "false_negatives": 4,
-        "precision": 0.0,
-        "recall": 0.0,
-        "f1": 0
+        "findings_found": 9,
+        "true_positives": 2,
+        "false_positives": 7,
+        "false_negatives": 2,
+        "precision": 0.222,
+        "recall": 0.5,
+        "f1": 0.308
       }
     },
     "multi_agent": {
-      "findings_count": 95,
-      "consolidated_findings": 7,
-      "time_seconds": 123.5,
+      "findings_count": 126,
+      "consolidated_findings": 5,
+      "time_seconds": 135.6,
       "scores": {
         "total_ground_truth": 4,
-        "findings_found": 95,
-        "true_positives": 2,
-        "false_positives": 93,
-        "false_negatives": 2,
-        "precision": 0.021,
-        "recall": 0.5,
-        "f1": 0.04
+        "findings_found": 126,
+        "true_positives": 1,
+        "false_positives": 125,
+        "false_negatives": 3,
+        "precision": 0.008,
+        "recall": 0.25,
+        "f1": 0.015
       },
-      "total_tokens": 19269
+      "total_tokens": 22525
     },
     "improvement": {
-      "findings_pct": 850.0,
-      "f1_pct": 4000.0
+      "findings_pct": 1300.0,
+      "f1_pct": -95.1
     }
   },
   {
     "sample": "xss_app.py",
     "lines": 65,
     "single_agent": {
-      "findings_count": 12,
-      "time_seconds": 26.0,
+      "findings_count": 16,
+      "time_seconds": 32.3,
       "scores": {
         "total_ground_truth": 5,
-        "findings_found": 12,
-        "true_positives": 0,
-        "false_positives": 12,
-        "false_negatives": 5,
-        "precision": 0.0,
-        "recall": 0.0,
-        "f1": 0
+        "findings_found": 16,
+        "true_positives": 2,
+        "false_positives": 14,
+        "false_negatives": 3,
+        "precision": 0.125,
+        "recall": 0.4,
+        "f1": 0.19
       }
     },
     "multi_agent": {
-      "findings_count": 116,
-      "consolidated_findings": 7,
-      "time_seconds": 141.7,
+      "findings_count": 97,
+      "consolidated_findings": 4,
+      "time_seconds": 122.4,
       "scores": {
         "total_ground_truth": 5,
-        "findings_found": 116,
+        "findings_found": 97,
         "true_positives": 1,
-        "false_positives": 115,
+        "false_positives": 96,
         "false_negatives": 4,
-        "precision": 0.009,
+        "precision": 0.01,
         "recall": 0.2,
-        "f1": 0.017
+        "f1": 0.02
       },
-      "total_tokens": 21792
+      "total_tokens": 20669
     },
     "improvement": {
-      "findings_pct": 866.7,
-      "f1_pct": 1700.0
+      "findings_pct": 506.2,
+      "f1_pct": -89.5
     }
   },
   {
     "sample": "cmd_injection.py",
     "lines": 60,
     "single_agent": {
-      "findings_count": 9,
-      "time_seconds": 20.0,
-      "scores": {
-        "total_ground_truth": 5,
-        "findings_found": 9,
-        "true_positives": 1,
-        "false_positives": 8,
-        "false_negatives": 4,
-        "precision": 0.111,
-        "recall": 0.2,
-        "f1": 0.143
-      }
-    },
-    "multi_agent": {
-      "findings_count": 112,
-      "consolidated_findings": 6,
-      "time_seconds": 150.0,
-      "scores": {
-        "total_ground_truth": 5,
-        "findings_found": 112,
-        "true_positives": 1,
-        "false_positives": 111,
-        "false_negatives": 4,
-        "precision": 0.009,
-        "recall": 0.2,
-        "f1": 0.017
-      },
-      "total_tokens": 26254
-    },
-    "improvement": {
-      "findings_pct": 1144.4,
-      "f1_pct": -88.1
-    }
-  },
-  {
-    "sample": "hardcoded_secrets.py",
-    "lines": 51,
-    "single_agent": {
       "findings_count": 10,
-      "time_seconds": 16.6,
-      "scores": {
-        "total_ground_truth": 7,
-        "findings_found": 10,
-        "true_positives": 1,
-        "false_positives": 9,
-        "false_negatives": 6,
-        "precision": 0.1,
-        "recall": 0.143,
-        "f1": 0.118
-      }
-    },
-    "multi_agent": {
-      "findings_count": 86,
-      "consolidated_findings": 6,
-      "time_seconds": 120.6,
-      "scores": {
-        "total_ground_truth": 7,
-        "findings_found": 86,
-        "true_positives": 6,
-        "false_positives": 80,
-        "false_negatives": 1,
-        "precision": 0.07,
-        "recall": 0.857,
-        "f1": 0.129
-      },
-      "total_tokens": 16909
-    },
-    "improvement": {
-      "findings_pct": 760.0,
-      "f1_pct": 9.3
-    }
-  },
-  {
-    "sample": "insecure_deserialize.py",
-    "lines": 61,
-    "single_agent": {
-      "findings_count": 6,
-      "time_seconds": 15.9,
-      "scores": {
-        "total_ground_truth": 5,
-        "findings_found": 6,
-        "true_positives": 0,
-        "false_positives": 6,
-        "false_negatives": 5,
-        "precision": 0.0,
-        "recall": 0.0,
-        "f1": 0
-      }
-    },
-    "multi_agent": {
-      "findings_count": 103,
-      "consolidated_findings": 6,
-      "time_seconds": 127.8,
-      "scores": {
-        "total_ground_truth": 5,
-        "findings_found": 103,
-        "true_positives": 2,
-        "false_positives": 101,
-        "false_negatives": 3,
-        "precision": 0.019,
-        "recall": 0.4,
-        "f1": 0.037
-      },
-      "total_tokens": 20744
-    },
-    "improvement": {
-      "findings_pct": 1616.7,
-      "f1_pct": 3700.0
-    }
-  },
-  {
-    "sample": "path_traversal.py",
-    "lines": 65,
-    "single_agent": {
-      "findings_count": 10,
-      "time_seconds": 20.9,
+      "time_seconds": 23.7,
       "scores": {
         "total_ground_truth": 5,
         "findings_found": 10,
@@ -207,62 +93,176 @@
       }
     },
     "multi_agent": {
-      "findings_count": 89,
-      "consolidated_findings": 9,
-      "time_seconds": 111.6,
+      "findings_count": 104,
+      "consolidated_findings": 5,
+      "time_seconds": 145.1,
       "scores": {
         "total_ground_truth": 5,
-        "findings_found": 89,
-        "true_positives": 3,
-        "false_positives": 86,
-        "false_negatives": 2,
-        "precision": 0.034,
-        "recall": 0.6,
-        "f1": 0.064
+        "findings_found": 104,
+        "true_positives": 1,
+        "false_positives": 103,
+        "false_negatives": 4,
+        "precision": 0.01,
+        "recall": 0.2,
+        "f1": 0.018
       },
-      "total_tokens": 19358
+      "total_tokens": 24519
     },
     "improvement": {
-      "findings_pct": 790.0,
-      "f1_pct": -51.9
+      "findings_pct": 940.0,
+      "f1_pct": -86.5
+    }
+  },
+  {
+    "sample": "hardcoded_secrets.py",
+    "lines": 51,
+    "single_agent": {
+      "findings_count": 10,
+      "time_seconds": 21.0,
+      "scores": {
+        "total_ground_truth": 7,
+        "findings_found": 10,
+        "true_positives": 0,
+        "false_positives": 10,
+        "false_negatives": 7,
+        "precision": 0.0,
+        "recall": 0.0,
+        "f1": 0
+      }
+    },
+    "multi_agent": {
+      "findings_count": 87,
+      "consolidated_findings": 5,
+      "time_seconds": 123.5,
+      "scores": {
+        "total_ground_truth": 7,
+        "findings_found": 87,
+        "true_positives": 6,
+        "false_positives": 81,
+        "false_negatives": 1,
+        "precision": 0.069,
+        "recall": 0.857,
+        "f1": 0.128
+      },
+      "total_tokens": 18881
+    },
+    "improvement": {
+      "findings_pct": 770.0,
+      "f1_pct": 12800.0
+    }
+  },
+  {
+    "sample": "insecure_deserialize.py",
+    "lines": 61,
+    "single_agent": {
+      "findings_count": 0,
+      "time_seconds": 1.1,
+      "scores": {
+        "total_ground_truth": 5,
+        "findings_found": 0,
+        "true_positives": 0,
+        "false_positives": 0,
+        "false_negatives": 5,
+        "precision": 0,
+        "recall": 0.0,
+        "f1": 0
+      }
+    },
+    "multi_agent": {
+      "findings_count": 0,
+      "consolidated_findings": 0,
+      "time_seconds": 15.0,
+      "scores": {
+        "total_ground_truth": 5,
+        "findings_found": 0,
+        "true_positives": 0,
+        "false_positives": 0,
+        "false_negatives": 5,
+        "precision": 0,
+        "recall": 0.0,
+        "f1": 0
+      },
+      "total_tokens": 7110
+    },
+    "improvement": {
+      "findings_pct": 0.0,
+      "f1_pct": 0.0
+    }
+  },
+  {
+    "sample": "path_traversal.py",
+    "lines": 65,
+    "single_agent": {
+      "findings_count": 0,
+      "time_seconds": 0.9,
+      "scores": {
+        "total_ground_truth": 5,
+        "findings_found": 0,
+        "true_positives": 0,
+        "false_positives": 0,
+        "false_negatives": 5,
+        "precision": 0,
+        "recall": 0.0,
+        "f1": 0
+      }
+    },
+    "multi_agent": {
+      "findings_count": 0,
+      "consolidated_findings": 0,
+      "time_seconds": 15.8,
+      "scores": {
+        "total_ground_truth": 5,
+        "findings_found": 0,
+        "true_positives": 0,
+        "false_positives": 0,
+        "false_negatives": 5,
+        "precision": 0,
+        "recall": 0.0,
+        "f1": 0
+      },
+      "total_tokens": 8100
+    },
+    "improvement": {
+      "findings_pct": 0.0,
+      "f1_pct": 0.0
     }
   },
   {
     "sample": "csrf_missing.py",
     "lines": 65,
     "single_agent": {
-      "findings_count": 12,
-      "time_seconds": 28.9,
+      "findings_count": 0,
+      "time_seconds": 0.9,
       "scores": {
         "total_ground_truth": 5,
-        "findings_found": 12,
-        "true_positives": 1,
-        "false_positives": 11,
-        "false_negatives": 4,
-        "precision": 0.083,
-        "recall": 0.2,
-        "f1": 0.118
+        "findings_found": 0,
+        "true_positives": 0,
+        "false_positives": 0,
+        "false_negatives": 5,
+        "precision": 0,
+        "recall": 0.0,
+        "f1": 0
       }
     },
     "multi_agent": {
-      "findings_count": 92,
-      "consolidated_findings": 7,
-      "time_seconds": 123.1,
+      "findings_count": 0,
+      "consolidated_findings": 0,
+      "time_seconds": 14.6,
       "scores": {
         "total_ground_truth": 5,
-        "findings_found": 92,
-        "true_positives": 1,
-        "false_positives": 91,
-        "false_negatives": 4,
-        "precision": 0.011,
-        "recall": 0.2,
-        "f1": 0.021
+        "findings_found": 0,
+        "true_positives": 0,
+        "false_positives": 0,
+        "false_negatives": 5,
+        "precision": 0,
+        "recall": 0.0,
+        "f1": 0
       },
-      "total_tokens": 24264
+      "total_tokens": 8640
     },
     "improvement": {
-      "findings_pct": 666.7,
-      "f1_pct": -82.2
+      "findings_pct": 0.0,
+      "f1_pct": 0.0
     }
   }
 ]
