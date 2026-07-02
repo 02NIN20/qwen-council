@@ -57,18 +57,16 @@ class CoordinatorAgent(BaseAgent):
         context: list[dict[str, Any]] | None = None,
         round: int = 1,
     ) -> list[Finding]:
-        """The Coordinator doesn't produce findings about the code itself.
+        """Direct meta-analysis — one LLM call about the review process.
 
-        Instead, it produces "meta-findings" about the review process:
-        which agents were activated, in what order, and why. In round 1
-        it runs TaskPlanner + a deterministic static summary. In later
-        rounds it focuses on routing and prioritisation.
+        Produces meta-findings about review strategy, not code issues.
+        No sub-agent delegation during standard review.
         """
         if not code.strip():
             return []
-        if round == 1:
-            return await self._analyze_round1(code, round)
-        return await self._analyze_round_n(code, round)
+        prompt = self._build_user_prompt(code, context, round)
+        response = await self._call_llm(prompt)
+        return self._parse_findings(response, round)
 
     async def _analyze_round1(
         self, code: str, round: int

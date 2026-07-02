@@ -52,11 +52,12 @@ class AnalystAgent(BaseAgent):
         context: list[dict[str, Any]] | None = None,
         round: int = 1,
     ) -> list[Finding]:
+        """Direct analysis — one LLM call, no sub-agent delegation."""
         if not code.strip():
             return []
-        if round == 1:
-            return await self._analyze_round1(code, context, round)
-        return await self._analyze_round_n(code, context, round)
+        prompt = self._build_user_prompt(code, context, round)
+        response = await self._call_llm(prompt)
+        return self._parse_findings(response, round)
 
     async def _analyze_round1(
         self, code: str, context: list[dict[str, Any]] | None, round: int

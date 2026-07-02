@@ -56,19 +56,19 @@ class CriticAgent(BaseAgent):
         context: list[dict[str, Any]] | None = None,
         round: int = 1,
     ) -> list[Finding]:
-        """Delegate to 3 sub-agents, then synthesise.
+        """Direct analysis — one LLM call, no sub-agent delegation.
 
-        Round 1: run all 3 sub-agents in parallel and produce fresh findings.
-        Round 2+: build on previous-round context; sub-agents are skipped to
-        save tokens — the LLM uses the sub-agent findings from round 1
-        stored in working memory instead.
+        Sub-agents and tools are available for proactive actions (implement_fix,
+        escalate_finding, research_topic) but are NOT used during standard review.
+        This eliminates 3+ sub-agent LLM calls per agent, reducing latency from
+        ~120s to ~15s per agent while improving focus on domain-specific findings.
         """
         if not code.strip():
             return []
 
-        if round == 1:
-            return await self._analyze_round1(code, context, round)
-        return await self._analyze_round_n(code, context, round)
+        prompt = self._build_user_prompt(code, context, round)
+        response = await self._call_llm(prompt)
+        return self._parse_findings(response, round)
 
     async def _analyze_round1(
         self, code: str, context: list[dict[str, Any]] | None, round: int
