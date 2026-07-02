@@ -23,8 +23,9 @@ function Bar({
 }) {
   const better = invert ? Math.min : Math.max;
   const best = better(singleVal, multiVal);
-  const singlePct = (singleVal / maxVal) * 100;
-  const multiPct = (multiVal / maxVal) * 100;
+  const effectiveMax = Math.max(singleVal, multiVal, maxVal, 1);
+  const singlePct = Math.min((singleVal / effectiveMax) * 100, 100);
+  const multiPct = Math.min((multiVal / effectiveMax) * 100, 100);
 
   return (
     <div className="mb-3">
