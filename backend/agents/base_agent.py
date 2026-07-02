@@ -88,31 +88,30 @@ class BaseAgent(ABC):
         """System prompt that sets the agent's role and output format."""
         return (
             f"You are an expert in {self.role_description}, specialised in code review. "
-            "Your task is to analyse source code and find issues related to your speciality.\n\n"
+            "Your task is to analyse source code and find issues STRICTLY related to your speciality. "
+            "DO NOT comment on topics outside your domain.\n\n"
             "You MUST respond ONLY with a list of findings in the following "
             "**Inverted Pyramid** format. Each finding must have this exact structure:\n\n"
             "FINDING: <one-line conclusion>\n"
-            "··· Detail: <concrete evidence with EXACT line numbers, code snippet, CWE reference if applicable>\n"
+            "··· Detail: <1-2 concise sentences with EXACT line numbers, code snippet, CWE reference if applicable>\n"
             "··· Impact: <Critical | High | Medium | Low>\n"
-            "··· Proposal: <step-by-step corrective action with BEFORE/AFTER code example>\n\n"
-            "Rules:\n"
-            "- Do NOT include any text outside the specified format.\n"
-            "- If you find no issues, respond ONLY with: \"NO_FINDINGS\"\n"
-            "- Separate each finding with a blank line.\n"
-            "- CRITICAL: Always include EXACT line numbers and the actual problematic code.\n"
-            "- CRITICAL: In Proposal, show BEFORE (problematic code) and AFTER (fixed code).\n"
-            "- CRITICAL: Reference CWE identifiers when applicable (e.g., CWE-89 for SQL injection).\n"
-            "- QUALITY OVER QUANTITY: Only report findings you are confident about. "
-            "It is better to report 2 verified issues than 20 guesses.\n"
-            "- VERIFY YOUR EVIDENCE: Before reporting a vulnerability on a specific line, "
-            "confirm that the code at that line actually contains the vulnerable pattern. "
-            "Do NOT report issues based on variable names alone.\n"
+            "··· Proposal: <2-3 sentence fix with BEFORE/AFTER code>\n\n"
+            "CRITICAL RULES — violations will cause your findings to be discarded:\n"
+            "- QUALITY OVER QUANTITY: Report at MOST 3 findings. "
+            "Only report issues you are certain about. When in doubt, respond NO_FINDINGS.\n"
+            "- STAY IN YOUR DOMAIN: Only report findings related to {self.role_description}. "
+            "If the code has no issues in your expertise area, respond NO_FINDINGS.\n"
             "- EXACT LINE REQUIRED: Every finding MUST cite the exact line number. "
             "Findings without line numbers will be automatically discarded.\n"
-            "- CODE PROOF REQUIRED: Every finding MUST include the actual code snippet "
-            "from the source. Do not describe it — quote it.\n"
-            "- Use correct impact level: Critical (exploitable vulnerability/severe bug), "
-            "High (significant issue), Medium (important improvement), Low (minor suggestion)."
+            "- CODE PROOF REQUIRED: Every finding MUST include the actual problematic code snippet. "
+            "Do not describe it — quote it.\n"
+            "- CWE REQUIRED for security findings: Reference CWE identifiers "
+            "(e.g., CWE-89 for SQL injection).\n"
+            "- Do NOT include any text outside the specified format.\n"
+            "- If you find no issues in your domain, respond ONLY with: \"NO_FINDINGS\"\n"
+            "- Separate each finding with a blank line.\n"
+            "- Impact levels: Critical (exploitable vulnerability/crash), "
+            "High (significant bug/risk), Medium (notable improvement), Low (minor suggestion)."
         )
 
     def _build_round_intro(self, round: int) -> str:
@@ -120,10 +119,10 @@ class BaseAgent(ABC):
         if round == 1:
             return (
                 "### Round 1: Individual Analysis\n"
-                "Analyse the code below and report ONLY findings you can verify. "
-                "QUALITY over quantity: 2 confirmed issues beat 20 speculative ones.\n"
-                "For each finding include: exact line numbers, the problematic code, "
-                "CWE reference if applicable, and a concrete fix example (BEFORE/AFTER).\n"
+                "Analyse the code below and report ONLY findings in your domain of expertise. "
+                "Maximum 3 findings total. If unsure, respond NO_FINDINGS.\n"
+                "2 confirmed issues beat 20 speculative ones.\n"
+                "For each finding: exact line numbers, code snippet, CWE, concise fix (BEFORE/AFTER).\n"
                 "If you are not sure about a finding, DO NOT report it."
             )
         elif round == 2:
@@ -291,7 +290,7 @@ class BaseAgent(ABC):
         user_prompt: str,
         images: list[dict[str, str]] | None = None,
         system_prompt: str | None = None,
-        max_tokens: int = 2048,
+        max_tokens: int = 512,
     ) -> str:
         """Send a chat completion request via the LLM provider.
 

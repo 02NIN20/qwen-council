@@ -170,15 +170,14 @@ class ResearcherAgent(BaseAgent):
             subagent_block,
             f"\n\n### Code to review:\n\n```\n{code}\n```",
             (
-                "\n\nYour job: turn the researcher's research and docs into "
-                "Inverted-Pyramid findings about best-practice deviations and "
-                "missing documentation.\n"
+                "\n\nYour job: synthesize research findings into at MOST 3 findings. "
+                "Only report documentation gaps or best-practice deviations — stay in your domain. "
                 "Use the EXACT format:\n"
                 "FINDING: <one-line conclusion>\n"
-                "··· Detail: <evidence, what the best practice says, line numbers>\n"
+                "··· Detail: <1-2 sentences, what the best practice says, line numbers>\n"
                 "··· Impact: <Critical|High|Medium|Low>\n"
-                "··· Proposal: <concrete docstring or best-practice application>\n\n"
-                "If no findings, respond with NO_FINDINGS."
+                "··· Proposal: <2-3 sentence docstring or best-practice fix>\n\n"
+                "If no findings in your domain, respond with NO_FINDINGS."
             ),
         ]
         return "\n".join(parts)

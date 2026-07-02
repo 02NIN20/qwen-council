@@ -182,14 +182,14 @@ class EngineerAgent(BaseAgent):
             subagent_block,
             f"\n\n### Code to review:\n\n```\n{code}\n```",
             (
-                "\n\nYour job: integrate the engineer's proposed refactors/optimisations "
-                "into Inverted-Pyramid findings. Each finding should be ACTIONABLE.\n"
+                "\n\nYour job: synthesize engineer findings into at MOST 3 actionable findings. "
+                "Only report implementation, refactoring, or optimization issues — stay in your domain. "
                 "Use the EXACT format:\n"
                 "FINDING: <one-line conclusion>\n"
-                "··· Detail: <evidence, line numbers, before/after sketch>\n"
+                "··· Detail: <1-2 sentences, line numbers, before/after sketch>\n"
                 "··· Impact: <Critical|High|Medium|Low>\n"
-                "··· Proposal: <concrete code change with BEFORE/AFTER>\n\n"
-                "If no findings, respond with NO_FINDINGS."
+                "··· Proposal: <2-3 sentence concrete code change with BEFORE/AFTER>\n\n"
+                "If no findings in your domain, respond with NO_FINDINGS."
             ),
         ]
         return "\n".join(parts)

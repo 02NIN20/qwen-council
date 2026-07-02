@@ -174,15 +174,14 @@ class ArchitectAgent(BaseAgent):
             subagent_block,
             f"\n\n### Code to review:\n\n```\n{code}\n```",
             (
-                "\n\nYour job: integrate the architect team's findings into "
-                "Inverted-Pyramid format. Focus on coupling, cohesion, dependency "
-                "cycles, and pattern misuse.\n"
+                "\n\nYour job: synthesize architect team findings into at MOST 3 findings. "
+                "Only report architecture, dependency, or design issues — stay in your domain. "
                 "Use the EXACT format:\n"
                 "FINDING: <one-line conclusion>\n"
-                "··· Detail: <evidence, cycle/pattern reference, line numbers>\n"
+                "··· Detail: <1-2 sentences, cycle/pattern reference, line numbers>\n"
                 "··· Impact: <Critical|High|Medium|Low>\n"
-                "··· Proposal: <refactor or pattern application with BEFORE/AFTER>\n\n"
-                "If no findings, respond with NO_FINDINGS."
+                "··· Proposal: <2-3 sentence refactor with BEFORE/AFTER>\n\n"
+                "If no findings in your domain, respond with NO_FINDINGS."
             ),
         ]
         return "\n".join(parts)

@@ -330,6 +330,44 @@ def _cluster_findings(findings: list[Finding]) -> list[list[Finding]]:
     return clusters
 
 
+def _agent_domain_weight(agent_name: str, finding_title: str) -> float:
+    """Return a weight [0.25 .. 2.0] for how relevant an agent's domain is to a finding.
+
+    Agents get full weight (2.0) when the finding matches their specialty,
+    reduced weight (0.5-1.0) for overlapping domains, and minimum weight
+    (0.25) for unrelated domains.
+    """
+    title_lower = finding_title.lower()
+    DOMAIN_KEYWORDS: dict[str, list[str]] = {
+        "critic": ["security", "sql injection", "xss", "csrf", "injection", "vulnerab",
+                   "auth", "sensitive", "exposed", "secret", "password", "debug",
+                   "eval", "os.system", "subprocess", "command", "deseriali",
+                   "traversal", "path traversal", "cwe"],
+        "analyst": ["complexity", "pattern", "anti-pattern", "duplication", "dead code",
+                    "nesting", "cyclomatic", "code smell", "readability", "maintainab"],
+        "architect": ["architecture", "coupling", "cohesion", "dependency", "solid",
+                      "interface", "separation", "layer", "module", "design pattern",
+                      "god object", "monolith", "scalab"],
+        "engineer": ["performance", "optimiz", "refactor", "memory leak", "race condition",
+                     "concurrency", "error handling", "exception", "logging", "fix",
+                     "implementation", "bug", "crash", "null", "undefined"],
+        "researcher": ["documentation", "best practice", "standard", "compliance",
+                       "reference", "deprecated", "version", "migration", "guide"],
+        "coordinator": ["critical", "escalat", "overview", "summary", "synthesis"],
+    }
+    agent_keywords = DOMAIN_KEYWORDS.get(agent_name, [])
+    if not agent_keywords:
+        return 1.0
+    matches = sum(1 for kw in agent_keywords if kw in title_lower)
+    if matches >= 2:
+        return 2.0
+    elif matches == 1:
+        return 1.5
+    elif any(kw[:4] in title_lower or title_lower in kw for kw in agent_keywords):
+        return 1.0
+    return 0.25
+
+
 def _consolidate_cluster(
     cluster: list[Finding],
 ) -> ConsolidatedFinding | None:
@@ -337,7 +375,7 @@ def _consolidate_cluster(
     if not cluster:
         return None
 
-    # Pick the representative: longest title from the highest-impact finding
+    # Pick the representative: highest domain-weighted impact from longest title
     severity_order = {"Critical": 0, "High": 1, "Medium": 2, "Low": 3}
     cluster_sorted = sorted(
         cluster,
@@ -348,19 +386,25 @@ def _consolidate_cluster(
     )
     rep = cluster_sorted[0]
 
-    # Gather votes: agent -> impact
+    # Gather votes with expertise weighting
     votes: dict[str, str] = {}
+    weighted_severity: dict[str, float] = {"Critical": 4.0, "High": 3.0, "Medium": 2.0, "Low": 1.0}
+    total_weight = 0.0
+    top_severity_weight = 0.0
     for f in cluster:
         votes[f.agent] = f.impact
+        weight = _agent_domain_weight(f.agent, f.title)
+        sev_score = weighted_severity.get(f.impact, 1.0)
+        total_weight += weight
+        top_severity_weight += weight * (sev_score / 4.0)
 
-    # Calculate consensus based on SEVERITY AGREEMENT, not participation
-    # If 6 agents all vote but with 3 different severities, that's LOW consensus
+    # Consensus: weighted agreement on severity
     total_agents = 6
     severity_counts = Counter(votes.values())
-    # The most common severity and how many agents chose it
     most_common_count = severity_counts.most_common(1)[0][1] if severity_counts else 0
-    # Agreement ratio = agents who agree on top severity / total agents
-    agreement_ratio = most_common_count / total_agents
+    # Apply weighting: effective agreement boosted by domain relevance
+    weighted_agreement = (most_common_count / total_agents) * (top_severity_weight / max(total_weight, 0.01))
+    agreement_ratio = min(1.0, weighted_agreement)
     consensus_score = agreement_ratio
 
     if agreement_ratio >= 0.8:

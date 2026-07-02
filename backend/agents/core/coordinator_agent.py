@@ -156,12 +156,12 @@ class CoordinatorAgent(BaseAgent):
             subagent_block,
             f"\n\n### Code to review:\n\n```\n{code}\n```",
             (
-                "\n\nYour job: produce META-FINDINGS about the review process itself. "
+                "\n\nYour job: produce at MOST 2 META-FINDINGS about the review process itself. "
                 "The Coordinator does not critique the code — it reports on how the "
                 "review should be structured and what gaps the plan might miss.\n"
                 "Use the EXACT format:\n"
                 "FINDING: <one-line conclusion about the review strategy>\n"
-                "··· Detail: <evidence from the plan, missing agents, scope>\n"
+                "··· Detail: <1 sentence, evidence from the plan, missing agents, scope>\n"
                 "··· Impact: <Critical|High|Medium|Low>\n"
                 "··· Proposal: <which extra agent to activate, or scope adjustment>\n\n"
                 "If no meta-finding is needed, respond with NO_FINDINGS."

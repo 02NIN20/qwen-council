@@ -182,14 +182,14 @@ class AnalystAgent(BaseAgent):
             subagent_block,
             f"\n\n### Code to review:\n\n```\n{code}\n```",
             (
-                "\n\nYour job: integrate the analyst team's findings into Inverted-Pyramid "
-                "format. Highlight hot spots, anti-patterns, and complexity issues.\n"
+                "\n\nYour job: synthesize analyst team findings into at MOST 3 findings. "
+                "Only report patterns, complexity, or static analysis issues — stay in your domain. "
                 "Use the EXACT format:\n"
                 "FINDING: <one-line conclusion>\n"
-                "··· Detail: <evidence, line numbers, complexity score>\n"
+                "··· Detail: <1-2 sentences, line numbers, complexity score>\n"
                 "··· Impact: <Critical|High|Medium|Low>\n"
-                "··· Proposal: <step-by-step refactor with BEFORE/AFTER>\n\n"
-                "If no findings, respond with NO_FINDINGS."
+                "··· Proposal: <2-3 sentence refactor with BEFORE/AFTER>\n\n"
+                "If no findings in your domain, respond with NO_FINDINGS."
             ),
         ]
         return "\n".join(parts)

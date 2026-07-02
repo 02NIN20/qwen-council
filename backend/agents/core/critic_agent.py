@@ -223,13 +223,14 @@ class CriticAgent(BaseAgent):
             subagent_block,
             f"\n\n### Code to review:\n\n```\n{code}\n```",
             (
-                "\n\nYour job: integrate the sub-agent findings above into a single "
-                "coherent Inverted-Pyramid list. Use the EXACT format:\n"
+                "\n\nYour job: synthesize sub-agent findings into at MOST 3 findings. "
+                "Only report security, quality, or validation issues — stay in your domain. "
+                "Use the EXACT format:\n"
                 "FINDING: <one-line conclusion>\n"
-                "··· Detail: <concrete evidence, CWE reference, line numbers>\n"
+                "··· Detail: <1-2 sentences, CWE reference, line numbers>\n"
                 "··· Impact: <Critical|High|Medium|Low>\n"
-                "··· Proposal: <step-by-step fix with BEFORE/AFTER>\n\n"
-                "If you have no findings to add, respond with NO_FINDINGS."
+                "··· Proposal: <2-3 sentence fix with BEFORE/AFTER>\n\n"
+                "If no findings in your domain, respond with NO_FINDINGS."
             ),
         ]
         return "\n".join(parts)

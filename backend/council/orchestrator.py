@@ -717,13 +717,35 @@ class CouncilOrchestrator:
         """Run one round across all agents in parallel."""
         active = agents if agents is not None else self.agents
 
-        # Build context list for each agent (findings from other agents)
+        # ── Domain-aware context filtering ──
+        # Each agent only sees findings from agents in related domains.
+        # This prevents agents from commenting outside their expertise.
+        AGENT_DOMAINS: dict[str, set[str]] = {
+            "critic": {"security", "quality", "validation", "style"},
+            "analyst": {"patterns", "complexity", "static_analysis", "quality"},
+            "architect": {"architecture", "dependencies", "scalability", "design"},
+            "engineer": {"implementation", "refactoring", "optimization", "fixes"},
+            "researcher": {"documentation", "best_practices", "references"},
+            "coordinator": {"orchestration", "synthesis", "escalation"},
+        }
+        # Agents whose findings are relevant to each agent
+        RELEVANT_PEERS: dict[str, set[str]] = {
+            "critic": {"critic", "analyst", "engineer"},
+            "analyst": {"analyst", "critic", "engineer", "architect"},
+            "architect": {"architect", "analyst", "engineer"},
+            "engineer": {"engineer", "critic", "analyst", "architect"},
+            "researcher": {"researcher", "analyst", "architect"},
+            "coordinator": {"critic", "analyst", "architect", "engineer", "researcher"},
+        }
+
+        # Build context list for each agent (findings from other agents, domain-filtered)
         context_per_agent: dict[str, list[dict[str, Any]]] = {}
         if context_findings:
             for agent_name in active:
                 others_context: list[dict[str, Any]] = []
+                relevant = RELEVANT_PEERS.get(agent_name, set(active.keys()))
                 for other_name, other_findings in context_findings.items():
-                    if other_name != agent_name:
+                    if other_name != agent_name and other_name in relevant:
                         for f in other_findings:
                             others_context.append(f.model_dump())
                 context_per_agent[agent_name] = others_context
